@@ -1,149 +1,164 @@
-import React, { useState } from 'react';
-import { AssetType } from '../types';
-import { mockEquipment, mockPreventiveMaintenance } from '../data/mockData';
-import ProtectedAction from './ProtectedAction';
+import React, { useMemo, useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { AssetType, HierarchySelection } from "../types";
+import { mockPreventiveMaintenance } from "../data/mockData";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface PreventiveMaintenanceProps {
   assetType: AssetType;
+  selectedHierarchy: HierarchySelection | null;
   onBack: () => void;
 }
 
-const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({ assetType, onBack }) => {
-  const [selectedEquipment, setSelectedEquipment] = useState('');
-  
-  const filteredEquipment = mockEquipment.filter(eq => 
-    assetType === 'generator' ? eq.name.includes('Generator') : eq.name.includes('WSS')
-  );
-  
-  const maintenanceData = mockPreventiveMaintenance.filter(pm => 
-    filteredEquipment.some(eq => eq.id === pm.equipment.id)
+const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
+  assetType,
+  selectedHierarchy,
+  onBack,
+}) => {
+  const [selectedEquipment, setSelectedEquipment] = useState("");
+
+  const maintenanceData = useMemo(
+    () =>
+      mockPreventiveMaintenance.filter(
+        (record) =>
+          record.equipment.assetType === assetType &&
+          (!selectedHierarchy ||
+            record.organizationId === selectedHierarchy.unitId),
+      ),
+    [assetType, selectedHierarchy],
   );
 
-  const getStatusText = (status: string, date?: string) => {
-    if (status === 'completed' && date) return `✓ ${date}`;
-    return status.charAt(0).toUpperCase() + status.slice(1);
+  const filteredEquipment = maintenanceData.map((record) => record.equipment);
+
+  const filteredData = maintenanceData.filter(
+    (record) => !selectedEquipment || record.equipment.id === selectedEquipment,
+  );
+
+  const getStatusBadge = (
+    status: "completed" | "pending" | "overdue",
+    date?: string,
+  ) => {
+    if (status === "completed") {
+      return (
+        <Badge className="bg-emerald-600 hover:bg-emerald-700">
+          {date ? `Completed (${date})` : "Completed"}
+        </Badge>
+      );
+    }
+    if (status === "pending") {
+      return <Badge className="bg-amber-500 hover:bg-amber-600">Pending</Badge>;
+    }
+    return <Badge variant="destructive">Overdue</Badge>;
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
-      <div className="container" style={{ padding: '1.5rem' }}>
-        {/* Back Button */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <button
-            onClick={onBack}
-            style={{
-              backgroundColor: '#374151',
-              color: '#ffffff',
-              border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '0.375rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              fontSize: '0.9rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#1f2937';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#374151';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            ← Back to Assets
-          </button>
-        </div>
-        {/* Equipment Selection */}
-        <div className="military-card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-          <div className="flex items-center space-x-4">
-            <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>Select Eqpt:</label>
-            <select
-              value={selectedEquipment}
-              onChange={(e) => setSelectedEquipment(e.target.value)}
-              className="military-input flex-1 max-w-md"
-            >
-              <option value="">All Equipment</option>
-              {filteredEquipment.map(eq => (
-                <option key={eq.id} value={eq.id}>
-                  {eq.name} - {eq.make} {eq.model}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+    <div className="space-y-4">
+      <Button variant="outline" onClick={onBack} className="gap-2">
+        <ArrowLeft className="h-4 w-4" />
+        Back to Assets
+      </Button>
 
-        {/* Maintenance Table */}
-        <div className="military-card" style={{ padding: '1.5rem' }}>
-          <div className="overflow-x-auto">
-            <table className="table" style={{ borderCollapse: 'collapse' }}>
-              <thead>
-                <tr className="bg-army-dark text-white">
-                  <th style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'left' }}>S.No</th>
-                  <th style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'left' }}>Eqpt Name</th>
-                  <th style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'left' }}>Make</th>
-                  <th style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'left' }}>Model</th>
-                  <th style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'center' }}>Qtr 1</th>
-                  <th style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'center' }}>Qtr 2</th>
-                  <th style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'center' }}>Qtr 3</th>
-                  <th style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'center' }}>Qtr 4</th>
-                  <th style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'left' }}>Comments</th>
-                </tr>
-              </thead>
-              <tbody>
-                {maintenanceData
-                  .filter(pm => !selectedEquipment || pm.equipment.id === selectedEquipment)
-                  .map((pm, index) => (
-                    <tr key={pm.id} style={{ backgroundColor: 'transparent' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                      <td style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem' }}>{index + 1}</td>
-                      <td style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem' }}>{pm.equipment.name}</td>
-                      <td style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem' }}>{pm.equipment.make}</td>
-                      <td style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem' }}>{pm.equipment.model}</td>
-                      <td style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'center' }}>
-                        <span className={`status-${pm.qtr1.status}`}>
-                          {getStatusText(pm.qtr1.status, pm.qtr1.date)}
-                        </span>
-                      </td>
-                      <td style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'center' }}>
-                        <span className={`status-${pm.qtr2.status}`}>
-                          {getStatusText(pm.qtr2.status, pm.qtr2.date)}
-                        </span>
-                      </td>
-                      <td style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'center' }}>
-                        <span className={`status-${pm.qtr3.status}`}>
-                          {getStatusText(pm.qtr3.status, pm.qtr3.date)}
-                        </span>
-                      </td>
-                      <td style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', textAlign: 'center' }}>
-                        <span className={`status-${pm.qtr4.status}`}>
-                          {getStatusText(pm.qtr4.status, pm.qtr4.date)}
-                        </span>
-                      </td>
-                      <td style={{ border: '2px solid var(--army-olive)', padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-                        {pm.comments || '-'}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-            
-            {maintenanceData.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-                No maintenance data available for the selected equipment.
-              </div>
-            )}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {assetType === "generator" ? "Generator" : "WSS Pump"} Preventive
+            Maintenance
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-w-md space-y-2">
+            <label className="text-sm font-medium">Select Equipment</label>
+            <Select
+              value={selectedEquipment || "all"}
+              onValueChange={(value) =>
+                setSelectedEquipment(value === "all" ? "" : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Equipment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Equipment</SelectItem>
+                {filteredEquipment.map((equipment) => (
+                  <SelectItem key={equipment.id} value={equipment.id}>
+                    {equipment.name} - {equipment.make} {equipment.model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          
-          <div style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#4b5563' }}>
-            <p><span style={{ display: 'inline-block', width: '1rem', height: '1rem', backgroundColor: '#10b981', marginRight: '0.5rem' }}></span>Completed</p>
-            <p><span style={{ display: 'inline-block', width: '1rem', height: '1rem', backgroundColor: '#f59e0b', marginRight: '0.5rem' }}></span>Pending</p>
-            <p><span style={{ display: 'inline-block', width: '1rem', height: '1rem', backgroundColor: '#ef4444', marginRight: '0.5rem' }}></span>Overdue</p>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>S.No</TableHead>
+                <TableHead>Equipment</TableHead>
+                <TableHead>Make</TableHead>
+                <TableHead>Model</TableHead>
+                <TableHead>Q1</TableHead>
+                <TableHead>Q2</TableHead>
+                <TableHead>Q3</TableHead>
+                <TableHead>Q4</TableHead>
+                <TableHead>Comments</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredData.map((record, index) => (
+                <TableRow key={record.id}>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell className="font-medium">
+                    {record.equipment.name}
+                  </TableCell>
+                  <TableCell>{record.equipment.make}</TableCell>
+                  <TableCell>{record.equipment.model}</TableCell>
+                  <TableCell>
+                    {getStatusBadge(record.qtr1.status, record.qtr1.date)}
+                  </TableCell>
+                  <TableCell>
+                    {getStatusBadge(record.qtr2.status, record.qtr2.date)}
+                  </TableCell>
+                  <TableCell>
+                    {getStatusBadge(record.qtr3.status, record.qtr3.date)}
+                  </TableCell>
+                  <TableCell>
+                    {getStatusBadge(record.qtr4.status, record.qtr4.date)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {record.comments || "-"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {filteredData.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No preventive maintenance data available.
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

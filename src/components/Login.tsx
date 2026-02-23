@@ -1,102 +1,114 @@
-import React, { useState } from 'react';
-import { User } from '../types';
+import React, { useState } from "react";
+import { User, UserRole } from "../types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface LoginProps {
   onLogin: (user: User) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<UserRole>("unit");
+  const [error, setError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     // Simple authentication logic (in real app, this would be API call)
-    if (username === 'army' && password === 'army123') {
+    if (username === "admin" && password === "admin") {
       const user: User = {
-        id: '1',
+        id: "1",
         username: username,
-        role: 'admin'
+        role,
       };
       onLogin(user);
     } else {
-      setError('Invalid credentials. Use army/army123');
+      setError("Invalid credentials. Use admin/admin");
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(to bottom right, #2F4F2F, #556B2F)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <div className="military-card" style={{ padding: '2rem', maxWidth: '400px', width: '100%', margin: '0 1rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#2F4F2F', marginBottom: '0.5rem' }}>Indian Army</h1>
-          <h2 style={{ fontSize: '1.25rem', color: '#666' }}>Asset Management System</h2>
-        </div>
-        
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
-              Username
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="military-input"
-              style={{ width: '100%' }}
-              placeholder="Enter username"
-              required
-            />
-          </div>
-          
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="military-input"
-              style={{ width: '100%' }}
-              placeholder="Enter password"
-              required
-            />
-          </div>
-          
-          {error && (
-            <div style={{
-              backgroundColor: '#FEE2E2',
-              border: '1px solid #FCA5A5',
-              color: '#DC2626',
-              padding: '0.75rem 1rem',
-              borderRadius: '0.25rem'
-            }}>
-              {error}
-            </div>
-          )}
-          
-          <button
-            type="submit"
-            className="military-button"
-            style={{ width: '100%', padding: '0.75rem', fontSize: '1.125rem' }}
-          >
-            Login
-          </button>
-        </form>
-        
-        <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.875rem', color: '#666' }}>
-          Demo Credentials: army / army123
-        </div>
+    <div className="space-y-5">
+      <div className="text-center">
+        <h2 className="text-xl font-semibold">SAMADHAN</h2>
+        <p className="text-sm text-muted-foreground">
+          Strategic Asset Management and Digital Handling of Assets Network
+        </p>
       </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="username">Username</Label>
+          <Input
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Enter username"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="role">Role</Label>
+          <Select
+            value={role}
+            onValueChange={(value) => setRole(value as UserRole)}
+          >
+            <SelectTrigger id="role">
+              <SelectValue placeholder="Select role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unit">Unit</SelectItem>
+              <SelectItem value="workshop">Workshop</SelectItem>
+              <SelectItem value="eme-battalion">EME Battalion</SelectItem>
+              <SelectItem value="div-hq">Div HQ</SelectItem>
+              <SelectItem value="engineer-regiment">
+                Engineer Regiment
+              </SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <Button type="submit" className="w-full">
+          Login
+        </Button>
+      </form>
+
+      <p className="text-center text-xs text-muted-foreground">
+        Demo credentials: admin / admin
+      </p>
     </div>
   );
 };
