@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { AssetType, HierarchySelection } from "../types";
-import { mockPreventiveMaintenance } from "../data/mockData";
+import { AssetType, HierarchySelection, PreventiveQuarter } from "../types";
+import { mockEquipment, mockPreventiveMaintenance } from "../data/mockData";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,16 +33,49 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
   onBack,
 }) => {
   const [selectedEquipment, setSelectedEquipment] = useState("");
+  const [expandedEquipmentId, setExpandedEquipmentId] = useState<string | null>(
+    null,
+  );
+
+  const defaultQuarters: PreventiveQuarter[] = [
+    { quarter: "Q1", status: "pending" },
+    { quarter: "Q2", status: "pending" },
+    { quarter: "Q3", status: "pending" },
+    { quarter: "Q4", status: "pending" },
+  ];
+
+  const unitEquipment = useMemo(
+    () =>
+      mockEquipment.filter(
+        (equipment) =>
+          equipment.assetType === assetType &&
+          (!selectedHierarchy ||
+            equipment.organizationId === selectedHierarchy.unitId),
+      ),
+    [assetType, selectedHierarchy],
+  );
 
   const maintenanceData = useMemo(
     () =>
-      mockPreventiveMaintenance.filter(
-        (record) =>
-          record.equipment.assetType === assetType &&
-          (!selectedHierarchy ||
-            record.organizationId === selectedHierarchy.unitId),
-      ),
-    [assetType, selectedHierarchy],
+      unitEquipment.map((equipment) => {
+        const existingRecord = mockPreventiveMaintenance.find(
+          (record) =>
+            record.equipment.id === equipment.id &&
+            record.organizationId === equipment.organizationId,
+        );
+
+        if (existingRecord) {
+          return existingRecord;
+        }
+
+        return {
+          id: `pm-missing-${equipment.id}`,
+          organizationId: equipment.organizationId,
+          equipment,
+          quarters: defaultQuarters,
+        };
+      }),
+    [defaultQuarters, unitEquipment],
   );
 
   const filteredEquipment = maintenanceData.map((record) => record.equipment);
@@ -51,21 +84,22 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
     (record) => !selectedEquipment || record.equipment.id === selectedEquipment,
   );
 
-  const getStatusBadge = (
-    status: "completed" | "pending" | "overdue",
-    date?: string,
-  ) => {
+  const getStatusBadge = (status: "completed" | "pending" | "overdue") => {
     if (status === "completed") {
       return (
-        <Badge className="bg-emerald-600 hover:bg-emerald-700">
-          {date ? `Completed (${date})` : "Completed"}
-        </Badge>
+        <Badge className="bg-emerald-600 hover:bg-emerald-700">Completed</Badge>
       );
     }
     if (status === "pending") {
       return <Badge className="bg-amber-500 hover:bg-amber-600">Pending</Badge>;
     }
     return <Badge variant="destructive">Overdue</Badge>;
+  };
+
+  const toggleExpandedEquipment = (equipmentId: string) => {
+    setExpandedEquipmentId((current) =>
+      current === equipmentId ? null : equipmentId,
+    );
   };
 
   return (
@@ -116,39 +150,69 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
                 <TableHead>Equipment</TableHead>
                 <TableHead>Make</TableHead>
                 <TableHead>Model</TableHead>
-                <TableHead>Q1</TableHead>
-                <TableHead>Q2</TableHead>
-                <TableHead>Q3</TableHead>
-                <TableHead>Q4</TableHead>
-                <TableHead>Comments</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.map((record, index) => (
-                <TableRow key={record.id}>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell className="font-medium">
-                    {record.equipment.name}
-                  </TableCell>
-                  <TableCell>{record.equipment.make}</TableCell>
-                  <TableCell>{record.equipment.model}</TableCell>
-                  <TableCell>
-                    {getStatusBadge(record.qtr1.status, record.qtr1.date)}
-                  </TableCell>
-                  <TableCell>
-                    {getStatusBadge(record.qtr2.status, record.qtr2.date)}
-                  </TableCell>
-                  <TableCell>
-                    {getStatusBadge(record.qtr3.status, record.qtr3.date)}
-                  </TableCell>
-                  <TableCell>
-                    {getStatusBadge(record.qtr4.status, record.qtr4.date)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {record.comments || "-"}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredData.map((record, index) => {
+                const isExpanded = expandedEquipmentId === record.equipment.id;
+
+                return (
+                  <React.Fragment key={record.id}>
+                    <TableRow
+                      className="cursor-pointer"
+                      onClick={() =>
+                        toggleExpandedEquipment(record.equipment.id)
+                      }
+                    >
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell className="font-medium">
+                        {record.equipment.name}
+                      </TableCell>
+                      <TableCell>{record.equipment.make}</TableCell>
+                      <TableCell>{record.equipment.model}</TableCell>
+                    </TableRow>
+
+                    {isExpanded && (
+                      <TableRow>
+                        <TableCell colSpan={4}>
+                          <div className="rounded-md border">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Quarter</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead>Completion Date</TableHead>
+                                  <TableHead>Comments</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {record.quarters.map((quarterData) => (
+                                  <TableRow
+                                    key={`${record.id}-${quarterData.quarter}`}
+                                  >
+                                    <TableCell className="font-medium">
+                                      {quarterData.quarter}
+                                    </TableCell>
+                                    <TableCell>
+                                      {getStatusBadge(quarterData.status)}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                      {quarterData.date || "-"}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                      {quarterData.comment || "-"}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </TableBody>
           </Table>
 

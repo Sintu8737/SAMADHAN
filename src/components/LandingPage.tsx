@@ -1,11 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { AssetType, HierarchySelection, MaintenanceType } from "../types";
-import {
-  mockCurrentRepairState,
-  mockOrganizations,
-  mockPreventiveMaintenance,
-  mockReactiveMaintenance,
-} from "../data/mockData";
+import { mockOrganizations } from "../data/mockData";
 import { useAuth } from "../contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -25,14 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Droplets, Settings } from "lucide-react";
 
 interface LandingPageProps {
@@ -121,124 +108,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAssetSelect }) => {
     onAssetSelect(asset, maintenance, currentHierarchy);
   };
 
-  const selectedUnitReactive = useMemo(
-    () =>
-      mockReactiveMaintenance.filter(
-        (entry) => entry.organizationId === unitId,
-      ),
-    [unitId],
-  );
-
-  const selectedUnitPreventive = useMemo(
-    () =>
-      mockPreventiveMaintenance.filter(
-        (entry) => entry.organizationId === unitId,
-      ),
-    [unitId],
-  );
-
-  const selectedUnitCurrentRepairs = useMemo(
-    () =>
-      mockCurrentRepairState.filter((entry) => entry.organizationId === unitId),
-    [unitId],
-  );
-
-  const topCriticalAssets = useMemo(() => {
-    const criticalMap = new Map<
-      string,
-      {
-        equipmentName: string;
-        make: string;
-        model: string;
-        totalBreakdowns: number;
-        totalCost: number;
-        totalDaysElapsed: number;
-        overdueCount: number;
-        score: number;
-      }
-    >();
-
-    const upsert = (
-      equipmentId: string,
-      payload: {
-        equipmentName: string;
-        make: string;
-        model: string;
-      },
-    ) => {
-      if (!criticalMap.has(equipmentId)) {
-        criticalMap.set(equipmentId, {
-          equipmentName: payload.equipmentName,
-          make: payload.make,
-          model: payload.model,
-          totalBreakdowns: 0,
-          totalCost: 0,
-          totalDaysElapsed: 0,
-          overdueCount: 0,
-          score: 0,
-        });
-      }
-      return criticalMap.get(equipmentId)!;
-    };
-
-    for (const reactive of selectedUnitReactive) {
-      const item = upsert(reactive.equipment.id, {
-        equipmentName: reactive.equipment.name,
-        make: reactive.equipment.make,
-        model: reactive.equipment.model,
-      });
-      item.totalBreakdowns += reactive.totalBreakdowns;
-      item.totalCost += reactive.totalCost;
-    }
-
-    for (const preventive of selectedUnitPreventive) {
-      const item = upsert(preventive.equipment.id, {
-        equipmentName: preventive.equipment.name,
-        make: preventive.equipment.make,
-        model: preventive.equipment.model,
-      });
-
-      const quarterlyStates = [
-        preventive.qtr1.status,
-        preventive.qtr2.status,
-        preventive.qtr3.status,
-        preventive.qtr4.status,
-      ];
-
-      item.overdueCount += quarterlyStates.filter(
-        (status) => status === "overdue",
-      ).length;
-    }
-
-    for (const repair of selectedUnitCurrentRepairs) {
-      const item = upsert(repair.equipment.id, {
-        equipmentName: repair.equipment.name,
-        make: repair.equipment.make,
-        model: repair.equipment.model,
-      });
-      item.totalDaysElapsed = Math.max(
-        item.totalDaysElapsed,
-        repair.totalDaysElapsed,
-      );
-    }
-
-    return Array.from(criticalMap.values())
-      .map((item) => ({
-        ...item,
-        score:
-          item.totalBreakdowns * 3 +
-          item.overdueCount * 4 +
-          Math.round(item.totalCost / 5000) +
-          Math.ceil(item.totalDaysElapsed / 5),
-      }))
-      .sort((left, right) => right.score - left.score)
-      .slice(0, 5);
-  }, [
-    selectedUnitCurrentRepairs,
-    selectedUnitPreventive,
-    selectedUnitReactive,
-  ]);
-
   return (
     <div className="space-y-6">
       <Card>
@@ -303,11 +172,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAssetSelect }) => {
                   <SelectValue placeholder="Select Brigade" />
                 </SelectTrigger>
                 <SelectContent>
-                  {brigadeOptions.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.name}
+                  {!divisionId ? (
+                    <SelectItem value="__select-division" disabled>
+                      Select Division first
                     </SelectItem>
-                  ))}
+                  ) : brigadeOptions.length === 0 ? (
+                    <SelectItem value="__no-brigade" disabled>
+                      No brigades available
+                    </SelectItem>
+                  ) : (
+                    brigadeOptions.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -323,11 +202,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAssetSelect }) => {
                   <SelectValue placeholder="Select Unit" />
                 </SelectTrigger>
                 <SelectContent>
-                  {unitOptions.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.name}
+                  {!brigadeId ? (
+                    <SelectItem value="__select-brigade" disabled>
+                      Select Brigade first
                     </SelectItem>
-                  ))}
+                  ) : unitOptions.length === 0 ? (
+                    <SelectItem value="__no-unit" disabled>
+                      No units available
+                    </SelectItem>
+                  ) : (
+                    unitOptions.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -424,70 +313,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAssetSelect }) => {
           </CardContent>
         </Card>
       </div>
-
-      {hierarchySelected && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Critical Assets</CardTitle>
-            <CardDescription>
-              Ranked by breakdown frequency, overdue preventive maintenance,
-              repair elapsed days, and repair cost.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Rank</TableHead>
-                  <TableHead>Equipment</TableHead>
-                  <TableHead>Make/Model</TableHead>
-                  <TableHead className="text-center">Breakdowns</TableHead>
-                  <TableHead className="text-center">PM Overdue</TableHead>
-                  <TableHead className="text-center">Repair Days</TableHead>
-                  <TableHead className="text-right">Repair Cost</TableHead>
-                  <TableHead className="text-center">Criticality</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {topCriticalAssets.map((asset, index) => (
-                  <TableRow key={`${asset.equipmentName}-${asset.model}`}>
-                    <TableCell className="font-medium">#{index + 1}</TableCell>
-                    <TableCell>{asset.equipmentName}</TableCell>
-                    <TableCell>
-                      {asset.make} / {asset.model}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {asset.totalBreakdowns}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {asset.overdueCount}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {asset.totalDaysElapsed}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ₹{asset.totalCost.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        variant={
-                          asset.score >= 12
-                            ? "destructive"
-                            : asset.score >= 8
-                              ? "secondary"
-                              : "outline"
-                        }
-                      >
-                        {asset.score}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };

@@ -23,6 +23,13 @@ export type WorkflowStage =
 
 export type MaintenanceStatus = "completed" | "pending" | "overdue";
 
+export interface PreventiveQuarter {
+  quarter: "Q1" | "Q2" | "Q3" | "Q4";
+  status: MaintenanceStatus;
+  date?: string;
+  comment?: string;
+}
+
 export interface OrganizationNode {
   id: string;
   name: string;
@@ -58,11 +65,7 @@ export interface PreventiveMaintenance {
   id: string;
   organizationId: string;
   equipment: Equipment;
-  qtr1: { status: MaintenanceStatus; date?: string };
-  qtr2: { status: MaintenanceStatus; date?: string };
-  qtr3: { status: MaintenanceStatus; date?: string };
-  qtr4: { status: MaintenanceStatus; date?: string };
-  comments?: string;
+  quarters: PreventiveQuarter[];
 }
 
 export interface Repair {

@@ -1,11 +1,5 @@
 import React, { useState } from "react";
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-  useNavigate,
-} from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AssetType, HierarchySelection, MaintenanceType } from "./types";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import LandingPage from "./components/LandingPage";
@@ -13,19 +7,24 @@ import PreventiveMaintenanceComponent from "./components/PreventiveMaintenance";
 import ReactiveMaintenanceComponent from "./components/ReactiveMaintenance";
 import CurrentRepairStateComponent from "./components/CurrentRepairState";
 import ArmyHeader from "./components/ArmyHeader";
-import Login from "./components/Login";
-import { Card, CardContent } from "@/components/ui/card";
+import LoginModal from "./components/LoginModal";
 
 type AppState = "landing" | "preventive" | "reactive" | "current-repair";
 
 const DashboardContent: React.FC = () => {
-  const navigate = useNavigate();
+  const { isAuthenticated, login } = useAuth();
   const [currentState, setCurrentState] = useState<AppState>("landing");
   const [currentAsset, setCurrentAsset] = useState<AssetType>("generator");
   const [selectedHierarchy, setSelectedHierarchy] =
     useState<HierarchySelection | null>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [pendingSelection, setPendingSelection] = useState<{
+    asset: AssetType;
+    maintenance: MaintenanceType;
+    hierarchy: HierarchySelection;
+  } | null>(null);
 
-  const handleAssetSelect = (
+  const navigateToMaintenance = (
     asset: AssetType,
     maintenance: MaintenanceType,
     hierarchy: HierarchySelection,
@@ -44,6 +43,20 @@ const DashboardContent: React.FC = () => {
         setCurrentState("current-repair");
         break;
     }
+  };
+
+  const handleAssetSelect = (
+    asset: AssetType,
+    maintenance: MaintenanceType,
+    hierarchy: HierarchySelection,
+  ) => {
+    if (!isAuthenticated) {
+      setPendingSelection({ asset, maintenance, hierarchy });
+      setIsLoginModalOpen(true);
+      return;
+    }
+
+    navigateToMaintenance(asset, maintenance, hierarchy);
   };
 
   const handleBack = () => {
@@ -107,71 +120,44 @@ const DashboardContent: React.FC = () => {
       <ArmyHeader
         title={getPageTitle()}
         showLogout={true}
-        onLogout={() => navigate("/login", { replace: true })}
+        onLogout={() => {
+          setCurrentState("landing");
+          setPendingSelection(null);
+        }}
       />
 
       <main className="mx-auto w-full max-w-7xl p-4 md:p-6">
         {renderCurrentPage()}
       </main>
+
+      {isLoginModalOpen && (
+        <LoginModal
+          onClose={() => setIsLoginModalOpen(false)}
+          onLoginSuccess={(user) => {
+            login(user);
+            setIsLoginModalOpen(false);
+
+            if (pendingSelection) {
+              navigateToMaintenance(
+                pendingSelection.asset,
+                pendingSelection.maintenance,
+                pendingSelection.hierarchy,
+              );
+              setPendingSelection(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
-};
-
-const LoginPage: React.FC = () => {
-  const { isAuthenticated, login } = useAuth();
-  const navigate = useNavigate();
-
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md">
-        <CardContent className="pt-6">
-          <Login
-            onLogin={(user) => {
-              login(user);
-              navigate("/dashboard", { replace: true });
-            }}
-          />
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({
-  children,
-}) => {
-  const { isAuthenticated } = useAuth();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-};
-
-const HomeRedirect: React.FC = () => {
-  const { isAuthenticated } = useAuth();
-  return <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />;
 };
 
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      <Route path="/" element={<HomeRedirect />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <DashboardContent />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard" element={<DashboardContent />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 };

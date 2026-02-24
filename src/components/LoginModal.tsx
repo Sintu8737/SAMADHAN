@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "../contexts/AuthContext";
+import { User } from "../types";
 import Login from "./Login";
 import {
   Dialog,
@@ -11,16 +11,10 @@ import {
 
 interface LoginModalProps {
   onClose: () => void;
+  onLoginSuccess: (user: User) => void;
 }
 
-const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
-  const { login } = useAuth();
-
-  const handleLogin = (user: any) => {
-    login(user);
-    onClose();
-  };
-
+const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess }) => {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
@@ -30,7 +24,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
             Sign in to access maintenance actions.
           </DialogDescription>
         </DialogHeader>
-        <Login onLogin={handleLogin} />
+        <Login onLogin={onLoginSuccess} />
       </DialogContent>
     </Dialog>
   );
