@@ -1,4 +1,4 @@
-import {
+﻿import {
   CurrentRepairState,
   Equipment,
   HierarchySelection,
@@ -7,6 +7,7 @@ import {
   ReactiveMaintenance,
   ReactiveRepairWorkflow,
   User,
+  WorkflowStage,
 } from "../types";
 
 /**
@@ -50,6 +51,39 @@ export function getRelevantOrgIds(hierarchy: HierarchySelection): string[] {
  */
 export function getOrgName(orgId: string): string {
   return mockOrganizations.find((o) => o.id === orgId)?.name ?? orgId;
+}
+
+/**
+ * Auto-compute the current workflow stage from which date fields are filled.
+ * The furthest date present determines the stage.
+ */
+export function computeCurrentStage(record: CurrentRepairState): WorkflowStage {
+  if (record.repairDone) return "repair-complete";
+  if (record.handoverToVendor || record.vendorPDC) return "po";
+  if (record.soByEngrRgt) return "engineer-regiment";
+  if (record.roByDivHQ) return "engineer-regiment";
+  if (record.notingOrder) return "div-hq";
+  if (record.woToEMEBN) return "eme-battalion";
+  return "workshop";
+}
+
+/**
+ * Compute elapsed days for a CRS record.
+ * - For completed repairs: from woFwdByUnit to repairDone date
+ * - For in-progress repairs: from woFwdByUnit to today
+ */
+export function getElapsedDays(record: CurrentRepairState): number {
+  const start = new Date(record.woFwdByUnit);
+  let end: Date;
+
+  if (computeCurrentStage(record) === "repair-complete" && record.repairDone) {
+    end = new Date(record.repairDone);
+  } else {
+    end = new Date();
+  }
+
+  const diffMs = end.getTime() - start.getTime();
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
 }
 
 export const mockOrganizations: OrganizationNode[] = [
@@ -1198,7 +1232,7 @@ export const mockReactiveMaintenance: ReactiveMaintenance[] = [
       {
         id: "r-30",
         date: "2025-12-10",
-        description: "Motor overload trip — starter assembly replaced",
+        description: "Motor overload trip - starter assembly replaced",
         cost: 12000,
         downtime: 3,
       },
@@ -1246,7 +1280,7 @@ export const mockReactiveMaintenance: ReactiveMaintenance[] = [
       {
         id: "r-34",
         date: "2025-04-15",
-        description: "Motor phase failure — rewinding done",
+        description: "Motor phase failure - rewinding done",
         cost: 22000,
         downtime: 5,
       },
@@ -1291,7 +1325,7 @@ export const mockReactiveMaintenance: ReactiveMaintenance[] = [
       {
         id: "r-39",
         date: "2025-05-18",
-        description: "Impeller wear — replaced with new set",
+        description: "Impeller wear - replaced with new set",
         cost: 15000,
         downtime: 4,
       },
@@ -1801,134 +1835,416 @@ export const mockReactiveRepairWorkflows: ReactiveRepairWorkflow[] = [
 ];
 
 export const mockCurrentRepairState: CurrentRepairState[] = [
+  // â”€â”€ UNIT STAGE: WO just raised, not yet sent to workshop â”€â”€
   {
     id: "crs-1",
     organizationId: "unit-1",
     equipment: mockEquipment[0],
-    defect: "Engine overheating issue",
-    woFwdToEMEBN: "2025-10-01",
-    notifyToDivHQ: "2025-10-02",
-    roReleasedByDivHQ: "2025-10-07",
-    soPlannedByEngrRgt: "2025-10-10",
-    vendorPDC: "2025-10-15",
-    totalDaysElapsed: 14,
-    currentStage: "div-hq",
+    defect: "Engine overheating under sustained load - coolant leak suspected",
+    woFwdByUnit: "2026-02-22",
   },
+
+  // â”€â”€ WORKSHOP STAGE: Unit forwarded WO, workshop inspecting â”€â”€
   {
     id: "crs-2",
-    organizationId: "unit-2",
-    equipment: mockEquipment[1],
-    defect: "Voltage fluctuation and auto-cutoff",
-    woFwdToEMEBN: "2025-10-03",
-    notifyToDivHQ: "2025-10-04",
-    roReleasedByDivHQ: "2025-10-09",
-    soPlannedByEngrRgt: "2025-10-12",
-    vendorPDC: "2025-10-18",
-    totalDaysElapsed: 16,
-    currentStage: "engineer-regiment",
+    organizationId: "unit-6",
+    equipment: mockEquipment[5],
+    defect:
+      "Radiator leakage and overheating under load - beyond workshop repair capability",
+    woFwdByUnit: "2026-02-15",
   },
   {
     id: "crs-3",
-    organizationId: "unit-5",
-    equipment: mockEquipment[2],
-    defect: "Pump shaft vibration beyond limit",
-    woFwdToEMEBN: "2025-09-01",
-    notifyToDivHQ: "2025-09-02",
-    roReleasedByDivHQ: "2025-09-08",
-    soPlannedByEngrRgt: "2025-09-10",
-    vendorPDC: "2025-09-20",
-    totalDaysElapsed: 19,
-    currentStage: "repair-complete",
+    organizationId: "unit-4",
+    equipment: mockEquipment[15],
+    defect:
+      "Alternator winding insulation failure - needs rewinding at base workshop",
+    woFwdByUnit: "2026-02-18",
   },
+
+  // â”€â”€ EME BATTALION STAGE: Workshop escalated, EME BN collating for noting â”€â”€
   {
     id: "crs-4",
-    organizationId: "unit-6",
-    equipment: mockEquipment[5],
-    defect: "Radiator leakage and overheating under load",
-    woFwdToEMEBN: "2025-11-01",
-    notifyToDivHQ: "2025-11-02",
-    roReleasedByDivHQ: "",
-    soPlannedByEngrRgt: "",
-    vendorPDC: "",
-    totalDaysElapsed: 5,
-    currentStage: "workshop",
+    organizationId: "unit-7",
+    equipment: mockEquipment[6],
+    defect:
+      "Pump motor tripping at peak demand - bearing race damage confirmed by workshop",
+    woFwdByUnit: "2026-02-02",
+    woToEMEBN: "2026-02-10",
   },
   {
     id: "crs-5",
-    organizationId: "unit-7",
-    equipment: mockEquipment[6],
-    defect: "Pump motor tripping at peak demand",
-    woFwdToEMEBN: "2025-10-20",
-    notifyToDivHQ: "2025-10-21",
-    roReleasedByDivHQ: "",
-    soPlannedByEngrRgt: "",
-    vendorPDC: "",
-    totalDaysElapsed: 9,
-    currentStage: "eme-battalion",
+    organizationId: "unit-8",
+    equipment: mockEquipment[7],
+    defect:
+      "Control panel relay malfunction - repeated auto-shutdown under load",
+    woFwdByUnit: "2026-02-05",
+    woToEMEBN: "2026-02-13",
   },
+
+  // â”€â”€ DIV HQ STAGE: Noting forwarded, awaiting Release Order â”€â”€
   {
     id: "crs-6",
-    organizationId: "unit-11",
-    equipment: mockEquipment[8],
-    defect: "Starter motor failure during cold start",
-    woFwdToEMEBN: "2025-09-18",
-    notifyToDivHQ: "2025-09-19",
-    roReleasedByDivHQ: "2025-09-24",
-    soPlannedByEngrRgt: "2025-09-26",
-    vendorPDC: "2025-10-05",
-    totalDaysElapsed: 20,
-    currentStage: "po",
+    organizationId: "unit-2",
+    equipment: mockEquipment[1],
+    defect:
+      "Voltage fluctuation and auto-cutoff - AVR module failure confirmed",
+    woFwdByUnit: "2026-01-10",
+    woToEMEBN: "2026-01-17",
+    notingOrder: "2026-01-30",
   },
   {
     id: "crs-7",
-    organizationId: "unit-14",
-    equipment: mockEquipment[9],
-    defect: "Frequent leakages from gland packing",
-    woFwdToEMEBN: "2025-08-05",
-    notifyToDivHQ: "2025-08-06",
-    roReleasedByDivHQ: "2025-08-10",
-    soPlannedByEngrRgt: "2025-08-12",
-    vendorPDC: "2025-08-19",
-    totalDaysElapsed: 14,
-    currentStage: "repair-complete",
+    organizationId: "unit-1",
+    equipment: mockEquipment[12],
+    defect:
+      "Governor hunting under variable load - electronic governor PCB defective",
+    woFwdByUnit: "2026-01-20",
+    woToEMEBN: "2026-01-28",
+    notingOrder: "2026-02-08",
   },
   {
     id: "crs-8",
-    organizationId: "unit-1",
-    equipment: mockEquipment[12],
-    defect: "Governor hunting under variable load",
-    woFwdToEMEBN: "2025-10-11",
-    notifyToDivHQ: "2025-10-12",
-    roReleasedByDivHQ: "2025-10-16",
-    soPlannedByEngrRgt: "",
-    vendorPDC: "",
-    totalDaysElapsed: 11,
-    currentStage: "div-hq",
+    organizationId: "unit-4",
+    equipment: mockEquipment[3],
+    defect:
+      "Bearing seizure in main pump - impeller shaft damaged beyond field repair",
+    woFwdByUnit: "2026-01-25",
+    woToEMEBN: "2026-02-01",
+    notingOrder: "2026-02-12",
   },
+
+  // â”€â”€ ENGINEER REGIMENT STAGE: RO issued, awaiting Supply Order â”€â”€
   {
     id: "crs-9",
     organizationId: "unit-10",
     equipment: mockEquipment[13],
-    defect: "Repeated shaft misalignment",
-    woFwdToEMEBN: "2025-11-04",
-    notifyToDivHQ: "2025-11-05",
-    roReleasedByDivHQ: "2025-11-09",
-    soPlannedByEngrRgt: "2025-11-11",
-    vendorPDC: "2025-11-18",
-    totalDaysElapsed: 8,
-    currentStage: "engineer-regiment",
+    defect:
+      "Repeated shaft misalignment - coupling and foundation bolts worn out",
+    woFwdByUnit: "2025-12-15",
+    woToEMEBN: "2025-12-23",
+    notingOrder: "2026-01-05",
+    roByDivHQ: "2026-01-18",
   },
   {
     id: "crs-10",
+    organizationId: "unit-3",
+    equipment: mockEquipment[10],
+    defect:
+      "Exhaust manifold crack and gas leak - welding failed, OEM part required",
+    woFwdByUnit: "2025-12-28",
+    woToEMEBN: "2026-01-05",
+    notingOrder: "2026-01-16",
+    roByDivHQ: "2026-01-28",
+  },
+
+  // â”€â”€ PO / VENDOR STAGE: SO issued, equipment with vendor for repair â”€â”€
+  {
+    id: "crs-11",
+    organizationId: "unit-11",
+    equipment: mockEquipment[8],
+    defect:
+      "Starter motor failure - armature burnt, requires OEM replacement from Cummins",
+    woFwdByUnit: "2025-11-20",
+    woToEMEBN: "2025-11-28",
+    notingOrder: "2025-12-10",
+    roByDivHQ: "2025-12-22",
+    soByEngrRgt: "2026-01-03",
+    handoverToVendor: "2026-01-12",
+    vendorName: "Cummins India Ltd",
+    vendorPDC: "2026-03-15",
+  },
+  {
+    id: "crs-12",
+    organizationId: "unit-3",
+    equipment: mockEquipment[3],
+    defect:
+      "Turbocharger oil seal failure - complete turbo assembly replacement needed",
+    woFwdByUnit: "2025-12-01",
+    woToEMEBN: "2025-12-09",
+    notingOrder: "2025-12-20",
+    roByDivHQ: "2026-01-04",
+    soByEngrRgt: "2026-01-14",
+    handoverToVendor: "2026-01-22",
+    vendorName: "Turbo Energy Pvt Ltd",
+    vendorPDC: "2026-03-30",
+  },
+
+  // â”€â”€ REPAIR COMPLETE: Full cycle completed â”€â”€
+  {
+    id: "crs-13",
+    organizationId: "unit-5",
+    equipment: mockEquipment[2],
+    defect:
+      "Pump shaft vibration beyond limit - shaft sleeve and bearings replaced by vendor",
+    woFwdByUnit: "2025-08-10",
+    woToEMEBN: "2025-08-18",
+    notingOrder: "2025-09-01",
+    roByDivHQ: "2025-09-14",
+    soByEngrRgt: "2025-09-24",
+    handoverToVendor: "2025-10-02",
+    vendorName: "KSB Pumps Ltd",
+    vendorPDC: "2025-11-10",
+    repairDone: "2025-11-08",
+  },
+  {
+    id: "crs-14",
+    organizationId: "unit-14",
+    equipment: mockEquipment[9],
+    defect:
+      "Frequent leakages from gland packing - mechanical seal replaced by vendor",
+    woFwdByUnit: "2025-09-05",
+    woToEMEBN: "2025-09-13",
+    notingOrder: "2025-09-25",
+    roByDivHQ: "2025-10-08",
+    soByEngrRgt: "2025-10-18",
+    handoverToVendor: "2025-10-25",
+    vendorName: "Texmo Industries",
+    vendorPDC: "2025-12-05",
+    repairDone: "2025-11-28",
+  },
+  {
+    id: "crs-15",
+    organizationId: "unit-12",
+    equipment: mockEquipment[17],
+    defect:
+      "Crankshaft end-play beyond tolerance - engine short block replaced at Cummins depot",
+    woFwdByUnit: "2025-07-15",
+    woToEMEBN: "2025-07-24",
+    notingOrder: "2025-08-06",
+    roByDivHQ: "2025-08-20",
+    soByEngrRgt: "2025-09-01",
+    handoverToVendor: "2025-09-10",
+    vendorName: "Cummins India Ltd",
+    vendorPDC: "2025-11-28",
+    repairDone: "2025-11-22",
+  },
+
+  // â”€â”€ Additional: Long-stuck items for red flags â”€â”€
+  {
+    id: "crs-16",
     organizationId: "unit-6",
     equipment: mockEquipment[14],
-    defect: "Frequent low-voltage trip",
-    woFwdToEMEBN: "2025-09-27",
-    notifyToDivHQ: "2025-09-28",
-    roReleasedByDivHQ: "",
-    soPlannedByEngrRgt: "",
-    vendorPDC: "",
-    totalDaysElapsed: 7,
-    currentStage: "workshop",
+    defect:
+      "Frequent low-voltage trip - stator winding insulation breakdown, needs rewinding",
+    woFwdByUnit: "2025-10-05",
+    woToEMEBN: "2025-10-14",
+    notingOrder: "2025-10-28",
+    roByDivHQ: "2025-11-12",
+    soByEngrRgt: "2025-11-22",
+    handoverToVendor: "2025-12-01",
+    vendorName: "Mahindra Powerol",
+    vendorPDC: "2026-04-15",
+  },
+  {
+    id: "crs-17",
+    organizationId: "unit-9",
+    equipment: mockEquipment[16],
+    defect:
+      "Submersible pump motor winding burnt - complete motor replacement required from OEM",
+    woFwdByUnit: "2026-01-02",
+    woToEMEBN: "2026-01-10",
+    notingOrder: "2026-01-22",
+  },
+  {
+    id: "crs-18",
+    organizationId: "unit-15",
+    equipment: mockEquipment[18],
+    defect:
+      "Impeller erosion causing low discharge pressure - OEM impeller out of stock",
+    woFwdByUnit: "2025-11-10",
+    woToEMEBN: "2025-11-19",
+    notingOrder: "2025-12-02",
+    roByDivHQ: "2025-12-16",
+  },
+  {
+    id: "crs-19",
+    organizationId: "unit-3",
+    equipment: mockEquipment[10],
+    defect:
+      "Pump motor overheating due to damaged cooling fan assembly - OEM fan motor required",
+    woFwdByUnit: "2025-06-10",
+    woToEMEBN: "2025-06-18",
+    notingOrder: "2025-06-30",
+    roByDivHQ: "2025-07-14",
+    soByEngrRgt: "2025-07-25",
+    handoverToVendor: "2025-08-02",
+    vendorName: "KSB Pumps Ltd",
+    vendorPDC: "2025-09-30",
+    repairDone: "2025-10-12",
+  },
+  {
+    id: "crs-20",
+    organizationId: "unit-4",
+    equipment: mockEquipment[15],
+    defect:
+      "Generator control panel malfunction - PCB replacement needed from authorized dealer",
+    woFwdByUnit: "2025-07-05",
+    woToEMEBN: "2025-07-12",
+    notingOrder: "2025-07-24",
+    roByDivHQ: "2025-08-08",
+    soByEngrRgt: "2025-08-18",
+    handoverToVendor: "2025-08-25",
+    vendorName: "Cummins India Ltd",
+    vendorPDC: "2025-10-15",
+    repairDone: "2025-10-15",
+  },
+  {
+    id: "crs-21",
+    organizationId: "unit-8",
+    equipment: mockEquipment[7],
+    defect:
+      "Alternator bearing seized causing vibration - complete alternator overhaul required",
+    woFwdByUnit: "2025-08-12",
+    woToEMEBN: "2025-08-20",
+    notingOrder: "2025-09-02",
+    roByDivHQ: "2025-09-16",
+    soByEngrRgt: "2025-09-28",
+    handoverToVendor: "2025-10-05",
+    vendorName: "Turbo Energy Pvt Ltd",
+    vendorPDC: "2025-11-20",
+    repairDone: "2025-12-08",
+  },
+  {
+    id: "crs-22",
+    organizationId: "unit-12",
+    equipment: mockEquipment[17],
+    defect:
+      "Fuel injection pump timing fault - requires recalibration at authorized service center",
+    woFwdByUnit: "2025-09-01",
+    woToEMEBN: "2025-09-09",
+    notingOrder: "2025-09-20",
+    roByDivHQ: "2025-10-04",
+    soByEngrRgt: "2025-10-15",
+    handoverToVendor: "2025-10-22",
+    vendorName: "Mahindra Powerol",
+    vendorPDC: "2025-12-10",
+    repairDone: "2026-01-05",
+  },
+  {
+    id: "crs-23",
+    organizationId: "unit-6",
+    equipment: mockEquipment[14],
+    defect:
+      "Radiator core leak causing engine overheating - core replacement from OEM backorder",
+    woFwdByUnit: "2025-10-20",
+    woToEMEBN: "2025-10-28",
+    notingOrder: "2025-11-10",
+    roByDivHQ: "2025-11-24",
+    soByEngrRgt: "2025-12-05",
+    handoverToVendor: "2025-12-12",
+    vendorName: "Cummins India Ltd",
+    vendorPDC: "2026-02-15",
+    repairDone: "2026-02-10",
+  },
+  {
+    id: "crs-24",
+    organizationId: "unit-13",
+    equipment: mockEquipment[11],
+    defect:
+      "AVR module failure causing voltage fluctuation - imported module with long lead time",
+    woFwdByUnit: "2025-11-05",
+    woToEMEBN: "2025-11-14",
+    notingOrder: "2025-11-26",
+    roByDivHQ: "2025-12-10",
+    soByEngrRgt: "2025-12-22",
+    handoverToVendor: "2025-12-30",
+    vendorName: "Kirloskar Electric",
+    vendorPDC: "2026-02-28",
+  },
+  {
+    id: "crs-25",
+    organizationId: "unit-14",
+    equipment: mockEquipment[9],
+    defect:
+      "Mechanical seal failure causing water ingress into motor - OEM seal set procurement",
+    woFwdByUnit: "2025-05-15",
+    woToEMEBN: "2025-05-22",
+    notingOrder: "2025-06-04",
+    roByDivHQ: "2025-06-18",
+    soByEngrRgt: "2025-06-28",
+    handoverToVendor: "2025-07-06",
+    vendorName: "Texmo Industries",
+    vendorPDC: "2025-08-20",
+    repairDone: "2025-08-18",
+  },
+  {
+    id: "crs-26",
+    organizationId: "unit-7",
+    equipment: mockEquipment[6],
+    defect:
+      "Centrifugal pump impeller cavitation damage - replacement impeller casting required",
+    woFwdByUnit: "2025-12-01",
+    woToEMEBN: "2025-12-09",
+    notingOrder: "2025-12-20",
+    roByDivHQ: "2026-01-06",
+    soByEngrRgt: "2026-01-16",
+    handoverToVendor: "2026-01-23",
+    vendorName: "KSB Pumps Ltd",
+    vendorPDC: "2026-03-20",
+  },
+  {
+    id: "crs-27",
+    organizationId: "unit-11",
+    equipment: mockEquipment[8],
+    defect:
+      "Turbocharger wastegate actuator failure - OEM turbo assembly replacement required",
+    woFwdByUnit: "2025-04-10",
+    woToEMEBN: "2025-04-18",
+    notingOrder: "2025-04-30",
+    roByDivHQ: "2025-05-14",
+    soByEngrRgt: "2025-05-24",
+    handoverToVendor: "2025-06-02",
+    vendorName: "Mahindra Powerol",
+    vendorPDC: "2025-07-15",
+    repairDone: "2025-08-10",
+  },
+  {
+    id: "crs-28",
+    organizationId: "unit-16",
+    equipment: mockEquipment[19],
+    defect:
+      "Exhaust manifold crack causing gas leak - manifold casting not in stock at vendor",
+    woFwdByUnit: "2025-03-05",
+    woToEMEBN: "2025-03-12",
+    notingOrder: "2025-03-24",
+    roByDivHQ: "2025-04-08",
+    soByEngrRgt: "2025-04-18",
+    handoverToVendor: "2025-04-26",
+    vendorName: "Mahindra Powerol",
+    vendorPDC: "2025-06-10",
+    repairDone: "2025-07-02",
+  },
+  {
+    id: "crs-29",
+    organizationId: "unit-2",
+    equipment: mockEquipment[1],
+    defect:
+      "Starter motor solenoid burnt out - OEM solenoid assembly backordered from manufacturer",
+    woFwdByUnit: "2025-05-20",
+    woToEMEBN: "2025-05-28",
+    notingOrder: "2025-06-10",
+    roByDivHQ: "2025-06-24",
+    soByEngrRgt: "2025-07-04",
+    handoverToVendor: "2025-07-12",
+    vendorName: "Turbo Energy Pvt Ltd",
+    vendorPDC: "2025-08-25",
+    repairDone: "2025-09-15",
+  },
+  {
+    id: "crs-30",
+    organizationId: "unit-17",
+    equipment: mockEquipment[20],
+    defect:
+      "Gland packing failure causing excessive leakage - requires OEM packing set and shaft sleeve",
+    woFwdByUnit: "2025-07-15",
+    woToEMEBN: "2025-07-22",
+    notingOrder: "2025-08-04",
+    roByDivHQ: "2025-08-18",
+    soByEngrRgt: "2025-08-28",
+    handoverToVendor: "2025-09-05",
+    vendorName: "Turbo Energy Pvt Ltd",
+    vendorPDC: "2025-10-20",
+    repairDone: "2025-11-08",
   },
 ];

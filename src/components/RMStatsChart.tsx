@@ -185,7 +185,7 @@ const RMStatsChart: React.FC<RMStatsChartProps> = ({ maintenanceData }) => {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* KPI Cards Row */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {/* MTBF */}
           <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-blue-50 via-blue-50 to-blue-100 border-blue-200 px-4 py-4">
             <div className="absolute -right-3 -top-3 opacity-[0.07]">
@@ -274,6 +274,29 @@ const RMStatsChart: React.FC<RMStatsChartProps> = ({ maintenanceData }) => {
               </p>
               <p className="text-[11px] text-orange-600/80 mt-1">
                 across {maintenanceData.length} assets
+              </p>
+            </div>
+          </div>
+
+          {/* Total Downtime */}
+          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 border-slate-200 px-4 py-4">
+            <div className="absolute -right-3 -top-3 opacity-[0.07]">
+              <Clock className="h-20 w-20 text-slate-900" />
+            </div>
+            <div className="relative">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="rounded-lg bg-slate-600/10 p-1.5">
+                  <Clock className="h-4 w-4 text-slate-600" />
+                </div>
+                <p className="text-xs font-semibold text-slate-800 uppercase tracking-wide">
+                  Downtime
+                </p>
+              </div>
+              <p className="text-3xl font-extrabold text-slate-700 leading-none">
+                {stats.totalDowntimeDays}
+              </p>
+              <p className="text-[11px] text-slate-600/80 mt-1">
+                total days lost
               </p>
             </div>
           </div>

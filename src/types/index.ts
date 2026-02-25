@@ -121,11 +121,13 @@ export interface CurrentRepairState {
   organizationId: string;
   equipment: Equipment;
   defect: string;
-  woFwdToEMEBN: string;
-  notifyToDivHQ: string;
-  roReleasedByDivHQ: string;
-  soPlannedByEngrRgt: string;
-  vendorPDC: string;
-  totalDaysElapsed: number;
-  currentStage: WorkflowStage;
+  woFwdByUnit: string;
+  woToEMEBN?: string;
+  notingOrder?: string;
+  roByDivHQ?: string;
+  soByEngrRgt?: string;
+  handoverToVendor?: string;
+  vendorName?: string;
+  vendorPDC?: string;
+  repairDone?: string;
 }
