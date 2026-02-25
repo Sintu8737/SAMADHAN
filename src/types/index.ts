@@ -39,9 +39,9 @@ export interface OrganizationNode {
 
 export interface HierarchySelection {
   corpsId: string;
-  divisionId: string;
-  brigadeId: string;
-  unitId: string;
+  divisionId?: string;
+  brigadeId?: string;
+  unitId?: string;
 }
 
 export interface User {
@@ -59,6 +59,7 @@ export interface Equipment {
   serialNumber: string;
   assetType: AssetType;
   organizationId: string;
+  cost: number;
 }
 
 export interface PreventiveMaintenance {

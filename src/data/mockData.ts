@@ -1,12 +1,56 @@
 import {
   CurrentRepairState,
   Equipment,
+  HierarchySelection,
   OrganizationNode,
   PreventiveMaintenance,
   ReactiveMaintenance,
   ReactiveRepairWorkflow,
   User,
 } from "../types";
+
+/**
+ * Given an org ID, return all descendant org IDs (inclusive).
+ * E.g. passing a corps ID returns the corps + all divisions, brigades, and units under it.
+ */
+export function getDescendantOrgIds(orgId: string): string[] {
+  const result: string[] = [orgId];
+  const queue = [orgId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const node of mockOrganizations) {
+      if (node.parentId === current) {
+        result.push(node.id);
+        queue.push(node.id);
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Get the most specific org ID from a hierarchy selection,
+ * then return all unit-level descendant IDs under it.
+ */
+export function getRelevantOrgIds(hierarchy: HierarchySelection): string[] {
+  const mostSpecificId =
+    hierarchy.unitId ||
+    hierarchy.brigadeId ||
+    hierarchy.divisionId ||
+    hierarchy.corpsId;
+  const allDescendants = getDescendantOrgIds(mostSpecificId);
+  // Return only unit-level IDs (since equipment belongs to units)
+  return allDescendants.filter(
+    (id) => mockOrganizations.find((o) => o.id === id)?.level === "unit",
+  );
+}
+
+/**
+ * Get the display name for an organization ID.
+ */
+export function getOrgName(orgId: string): string {
+  return mockOrganizations.find((o) => o.id === orgId)?.name ?? orgId;
+}
 
 export const mockOrganizations: OrganizationNode[] = [
   { id: "corps-1", name: "1", level: "corps" },
@@ -90,6 +134,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "GEN001",
     assetType: "generator",
     organizationId: "unit-1",
+    cost: 185000,
   },
   {
     id: "eq-2",
@@ -99,6 +144,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "GEN002",
     assetType: "generator",
     organizationId: "unit-2",
+    cost: 350000,
   },
   {
     id: "eq-3",
@@ -108,6 +154,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "WSS001",
     assetType: "wss-pumps",
     organizationId: "unit-5",
+    cost: 275000,
   },
   {
     id: "eq-4",
@@ -117,6 +164,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "WSS002",
     assetType: "wss-pumps",
     organizationId: "unit-10",
+    cost: 145000,
   },
   {
     id: "eq-5",
@@ -126,6 +174,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "GEN003",
     assetType: "generator",
     organizationId: "unit-1",
+    cost: 480000,
   },
   {
     id: "eq-6",
@@ -135,6 +184,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "GEN004",
     assetType: "generator",
     organizationId: "unit-6",
+    cost: 625000,
   },
   {
     id: "eq-7",
@@ -144,6 +194,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "WSS003",
     assetType: "wss-pumps",
     organizationId: "unit-7",
+    cost: 210000,
   },
   {
     id: "eq-8",
@@ -153,6 +204,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "GEN005",
     assetType: "generator",
     organizationId: "unit-8",
+    cost: 240000,
   },
   {
     id: "eq-9",
@@ -162,6 +214,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "GEN006",
     assetType: "generator",
     organizationId: "unit-11",
+    cost: 550000,
   },
   {
     id: "eq-10",
@@ -171,6 +224,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "WSS004",
     assetType: "wss-pumps",
     organizationId: "unit-14",
+    cost: 120000,
   },
   {
     id: "eq-11",
@@ -180,6 +234,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "WSS005",
     assetType: "wss-pumps",
     organizationId: "unit-3",
+    cost: 95000,
   },
   {
     id: "eq-12",
@@ -189,6 +244,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "GEN007",
     assetType: "generator",
     organizationId: "unit-13",
+    cost: 420000,
   },
   {
     id: "eq-13",
@@ -198,6 +254,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "GEN008",
     assetType: "generator",
     organizationId: "unit-1",
+    cost: 750000,
   },
   {
     id: "eq-14",
@@ -207,6 +264,7 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "WSS006",
     assetType: "wss-pumps",
     organizationId: "unit-10",
+    cost: 175000,
   },
   {
     id: "eq-15",
@@ -216,6 +274,67 @@ export const mockEquipment: Equipment[] = [
     serialNumber: "GEN009",
     assetType: "generator",
     organizationId: "unit-6",
+    cost: 510000,
+  },
+  {
+    id: "eq-16",
+    name: "Generator Set 8KVA",
+    make: "Kirloskar",
+    model: "KOEL-8KVA",
+    serialNumber: "GEN010",
+    assetType: "generator",
+    organizationId: "unit-4",
+    cost: 265000,
+  },
+  {
+    id: "eq-17",
+    name: "WSS Pump 20HP",
+    make: "Texmo",
+    model: "TX-20",
+    serialNumber: "WSS007",
+    assetType: "wss-pumps",
+    organizationId: "unit-9",
+    cost: 88000,
+  },
+  {
+    id: "eq-18",
+    name: "Generator Set 22KVA",
+    make: "Cummins",
+    model: "C22D5",
+    serialNumber: "GEN011",
+    assetType: "generator",
+    organizationId: "unit-12",
+    cost: 590000,
+  },
+  {
+    id: "eq-19",
+    name: "WSS Pump 15HP",
+    make: "CRI",
+    model: "CRI-15",
+    serialNumber: "WSS008",
+    assetType: "wss-pumps",
+    organizationId: "unit-15",
+    cost: 72000,
+  },
+  {
+    id: "eq-20",
+    name: "Generator Set 35KVA",
+    make: "Ashok Leyland",
+    model: "AL-35KVA",
+    serialNumber: "GEN012",
+    assetType: "generator",
+    organizationId: "unit-16",
+    cost: 820000,
+  },
+  {
+    id: "eq-21",
+    name: "WSS Pump 25HP",
+    make: "KSB",
+    model: "KP-25",
+    serialNumber: "WSS009",
+    assetType: "wss-pumps",
+    organizationId: "unit-17",
+    cost: 105000,
   },
 ];
 
@@ -237,7 +356,11 @@ export const mockPreventiveMaintenance: PreventiveMaintenance[] = [
         date: "2025-04-20",
         comment: "Load test completed successfully",
       },
-      { quarter: "Q3", status: "pending" },
+      {
+        quarter: "Q3",
+        status: "overdue",
+        comment: "Unit deployed on field exercise",
+      },
       { quarter: "Q4", status: "pending" },
     ],
   },
@@ -324,7 +447,11 @@ export const mockPreventiveMaintenance: PreventiveMaintenance[] = [
         date: "2025-05-16",
         comment: "Cooling fan belt replaced",
       },
-      { quarter: "Q3", status: "pending" },
+      {
+        quarter: "Q3",
+        status: "overdue",
+        comment: "Budget approval pending",
+      },
       { quarter: "Q4", status: "pending" },
     ],
   },
@@ -502,6 +629,195 @@ export const mockPreventiveMaintenance: PreventiveMaintenance[] = [
       { quarter: "Q4", status: "pending", comment: "To be rescheduled" },
     ],
   },
+  {
+    id: "pm-14",
+    organizationId: "unit-1",
+    equipment: mockEquipment[4],
+    quarters: [
+      {
+        quarter: "Q1",
+        status: "completed",
+        date: "2025-01-22",
+        comment: "Governor calibration completed",
+      },
+      {
+        quarter: "Q2",
+        status: "overdue",
+        comment: "Unit deployed on field exercise",
+      },
+      {
+        quarter: "Q3",
+        status: "overdue",
+        comment: "Manpower shortage at workshop",
+      },
+      { quarter: "Q4", status: "pending", comment: "Pending Q2/Q3 clearance" },
+    ],
+  },
+  {
+    id: "pm-15",
+    organizationId: "unit-3",
+    equipment: mockEquipment[10],
+    quarters: [
+      {
+        quarter: "Q1",
+        status: "completed",
+        date: "2025-02-18",
+        comment: "Motor winding resistance checked",
+      },
+      {
+        quarter: "Q2",
+        status: "completed",
+        date: "2025-05-25",
+        comment: "Bearing replacement done",
+      },
+      {
+        quarter: "Q3",
+        status: "overdue",
+        comment: "Budget approval pending",
+      },
+      { quarter: "Q4", status: "pending", comment: "Not due yet" },
+    ],
+  },
+  {
+    id: "pm-16",
+    organizationId: "unit-4",
+    equipment: mockEquipment[15],
+    quarters: [
+      {
+        quarter: "Q1",
+        status: "overdue",
+        comment: "Equipment under operational commitment",
+      },
+      {
+        quarter: "Q2",
+        status: "overdue",
+        comment: "Specialist technician not available",
+      },
+      { quarter: "Q3", status: "pending", comment: "Awaiting clearance" },
+      { quarter: "Q4", status: "pending", comment: "Not started" },
+    ],
+  },
+  {
+    id: "pm-17",
+    organizationId: "unit-9",
+    equipment: mockEquipment[16],
+    quarters: [
+      {
+        quarter: "Q1",
+        status: "completed",
+        date: "2025-03-10",
+        comment: "Suction strainer cleaned",
+      },
+      {
+        quarter: "Q2",
+        status: "overdue",
+        comment: "Vendor support delayed",
+      },
+      {
+        quarter: "Q3",
+        status: "overdue",
+        comment: "Tool kit not available",
+      },
+      { quarter: "Q4", status: "pending", comment: "Planned" },
+    ],
+  },
+  {
+    id: "pm-18",
+    organizationId: "unit-12",
+    equipment: mockEquipment[17],
+    quarters: [
+      {
+        quarter: "Q1",
+        status: "completed",
+        date: "2025-01-30",
+        comment: "Load bank test completed",
+      },
+      {
+        quarter: "Q2",
+        status: "completed",
+        date: "2025-04-15",
+        comment: "AVR inspection done",
+      },
+      {
+        quarter: "Q3",
+        status: "overdue",
+        comment: "Unit deployed on field exercise",
+      },
+      { quarter: "Q4", status: "pending", comment: "Pending Q3" },
+    ],
+  },
+  {
+    id: "pm-19",
+    organizationId: "unit-15",
+    equipment: mockEquipment[18],
+    quarters: [
+      {
+        quarter: "Q1",
+        status: "overdue",
+        comment: "Parts shortage delayed PM",
+      },
+      {
+        quarter: "Q2",
+        status: "overdue",
+        comment: "Parts shortage delayed PM",
+      },
+      { quarter: "Q3", status: "pending", comment: "Awaiting parts" },
+      { quarter: "Q4", status: "pending", comment: "Not started" },
+    ],
+  },
+  {
+    id: "pm-20",
+    organizationId: "unit-16",
+    equipment: mockEquipment[19],
+    quarters: [
+      {
+        quarter: "Q1",
+        status: "completed",
+        date: "2025-02-08",
+        comment: "Fuel system flushed",
+      },
+      {
+        quarter: "Q2",
+        status: "overdue",
+        comment: "Equipment access restricted during ops",
+      },
+      {
+        quarter: "Q3",
+        status: "overdue",
+        comment: "Awaiting higher formation approval",
+      },
+      { quarter: "Q4", status: "pending", comment: "Not started" },
+    ],
+  },
+  {
+    id: "pm-21",
+    organizationId: "unit-17",
+    equipment: mockEquipment[20],
+    quarters: [
+      {
+        quarter: "Q1",
+        status: "completed",
+        date: "2025-03-05",
+        comment: "Valve seat inspection done",
+      },
+      {
+        quarter: "Q2",
+        status: "completed",
+        date: "2025-06-12",
+        comment: "Pressure test passed",
+      },
+      {
+        quarter: "Q3",
+        status: "overdue",
+        comment: "Workshop team unavailable",
+      },
+      {
+        quarter: "Q4",
+        status: "overdue",
+        comment: "Manpower shortage at workshop",
+      },
+    ],
+  },
 ];
 
 export const mockReactiveMaintenance: ReactiveMaintenance[] = [
@@ -514,27 +830,48 @@ export const mockReactiveMaintenance: ReactiveMaintenance[] = [
         id: "r-1",
         date: "2025-02-10",
         description: "Fuel pump replacement",
-        cost: 5000,
-        downtime: 2,
+        cost: 18000,
+        downtime: 3,
       },
       {
         id: "r-2",
         date: "2025-05-15",
-        description: "Alternator repair",
-        cost: 8000,
-        downtime: 3,
+        description: "Alternator rewinding and repair",
+        cost: 32000,
+        downtime: 5,
       },
       {
         id: "r-3",
         date: "2025-08-20",
-        description: "Engine oil leak fix",
-        cost: 3000,
-        downtime: 1,
+        description: "Engine block crack repair and gasket replacement",
+        cost: 45000,
+        downtime: 8,
+      },
+      {
+        id: "r-3a",
+        date: "2025-10-05",
+        description: "Turbocharger failure and replacement",
+        cost: 52000,
+        downtime: 7,
+      },
+      {
+        id: "r-3b",
+        date: "2025-12-18",
+        description: "Complete cooling system overhaul",
+        cost: 28000,
+        downtime: 4,
+      },
+      {
+        id: "r-3c",
+        date: "2026-01-22",
+        description: "Crankshaft bearing replacement",
+        cost: 22000,
+        downtime: 6,
       },
     ],
-    totalBreakdowns: 3,
-    totalCost: 16000,
-    totalDowntime: 6,
+    totalBreakdowns: 6,
+    totalCost: 197000,
+    totalDowntime: 33,
   },
   {
     id: "rm-2",
@@ -622,22 +959,57 @@ export const mockReactiveMaintenance: ReactiveMaintenance[] = [
     repairs: [
       {
         id: "r-11",
-        date: "2025-03-08",
+        date: "2025-01-15",
         description: "Bearing replacement",
-        cost: 3600,
-        downtime: 2,
+        cost: 12000,
+        downtime: 3,
       },
       {
         id: "r-12",
-        date: "2025-08-26",
+        date: "2025-04-08",
         description: "Motor rewinding",
-        cost: 9500,
+        cost: 35000,
+        downtime: 7,
+      },
+      {
+        id: "r-12a",
+        date: "2025-06-20",
+        description: "Impeller erosion repair and balancing",
+        cost: 28000,
         downtime: 5,
       },
+      {
+        id: "r-12b",
+        date: "2025-09-12",
+        description: "Shaft sleeve replacement",
+        cost: 42000,
+        downtime: 6,
+      },
+      {
+        id: "r-12c",
+        date: "2025-11-28",
+        description: "Discharge valve overhaul",
+        cost: 18000,
+        downtime: 3,
+      },
+      {
+        id: "r-12d",
+        date: "2026-01-10",
+        description: "Complete mechanical seal assembly replacement",
+        cost: 48000,
+        downtime: 8,
+      },
+      {
+        id: "r-12e",
+        date: "2026-02-15",
+        description: "Motor stator insulation failure",
+        cost: 38000,
+        downtime: 6,
+      },
     ],
-    totalBreakdowns: 2,
-    totalCost: 13100,
-    totalDowntime: 7,
+    totalBreakdowns: 7,
+    totalCost: 221000,
+    totalDowntime: 38,
   },
   {
     id: "rm-6",
@@ -758,6 +1130,220 @@ export const mockReactiveMaintenance: ReactiveMaintenance[] = [
     totalBreakdowns: 2,
     totalCost: 8900,
     totalDowntime: 3,
+  },
+  {
+    id: "rm-11",
+    organizationId: "unit-3",
+    equipment: mockEquipment[10],
+    repairs: [
+      {
+        id: "r-23",
+        date: "2025-02-14",
+        description: "Motor winding burnout repair",
+        cost: 22000,
+        downtime: 5,
+      },
+      {
+        id: "r-24",
+        date: "2025-05-30",
+        description: "Impeller replacement due to cavitation",
+        cost: 18000,
+        downtime: 4,
+      },
+      {
+        id: "r-25",
+        date: "2025-08-15",
+        description: "Shaft seal assembly failure",
+        cost: 15000,
+        downtime: 3,
+      },
+      {
+        id: "r-26",
+        date: "2025-11-20",
+        description: "Suction pipe corrosion replacement",
+        cost: 25000,
+        downtime: 6,
+      },
+      {
+        id: "r-27",
+        date: "2026-01-08",
+        description: "Bearing housing crack repair",
+        cost: 20000,
+        downtime: 5,
+      },
+    ],
+    totalBreakdowns: 5,
+    totalCost: 100000,
+    totalDowntime: 23,
+  },
+  {
+    id: "rm-12",
+    organizationId: "unit-10",
+    equipment: mockEquipment[3],
+    repairs: [
+      {
+        id: "r-28",
+        date: "2025-03-05",
+        description: "Control valve malfunction",
+        cost: 8500,
+        downtime: 2,
+      },
+      {
+        id: "r-29",
+        date: "2025-07-22",
+        description: "Pressure gauge and safety valve replacement",
+        cost: 6200,
+        downtime: 1,
+      },
+      {
+        id: "r-30",
+        date: "2025-12-10",
+        description: "Motor overload trip — starter assembly replaced",
+        cost: 12000,
+        downtime: 3,
+      },
+    ],
+    totalBreakdowns: 3,
+    totalCost: 26700,
+    totalDowntime: 6,
+  },
+  {
+    id: "rm-13",
+    organizationId: "unit-4",
+    equipment: mockEquipment[15],
+    repairs: [
+      {
+        id: "r-31",
+        date: "2025-04-12",
+        description: "Exhaust manifold crack welding",
+        cost: 14000,
+        downtime: 3,
+      },
+      {
+        id: "r-32",
+        date: "2025-08-28",
+        description: "Fuel injection pump overhaul",
+        cost: 28000,
+        downtime: 5,
+      },
+    ],
+    totalBreakdowns: 2,
+    totalCost: 42000,
+    totalDowntime: 8,
+  },
+  {
+    id: "rm-14",
+    organizationId: "unit-9",
+    equipment: mockEquipment[16],
+    repairs: [
+      {
+        id: "r-33",
+        date: "2025-01-28",
+        description: "Foot valve replacement",
+        cost: 8000,
+        downtime: 2,
+      },
+      {
+        id: "r-34",
+        date: "2025-04-15",
+        description: "Motor phase failure — rewinding done",
+        cost: 22000,
+        downtime: 5,
+      },
+      {
+        id: "r-35",
+        date: "2025-07-10",
+        description: "Delivery pipe burst replacement",
+        cost: 16000,
+        downtime: 3,
+      },
+      {
+        id: "r-36",
+        date: "2025-10-22",
+        description: "Complete pump assembly overhaul",
+        cost: 32000,
+        downtime: 7,
+      },
+      {
+        id: "r-37",
+        date: "2026-01-15",
+        description: "Non-return valve and strainer replacement",
+        cost: 14000,
+        downtime: 2,
+      },
+    ],
+    totalBreakdowns: 5,
+    totalCost: 92000,
+    totalDowntime: 19,
+  },
+  {
+    id: "rm-15",
+    organizationId: "unit-15",
+    equipment: mockEquipment[18],
+    repairs: [
+      {
+        id: "r-38",
+        date: "2025-02-20",
+        description: "Motor bearing seizure",
+        cost: 9500,
+        downtime: 2,
+      },
+      {
+        id: "r-39",
+        date: "2025-05-18",
+        description: "Impeller wear — replaced with new set",
+        cost: 15000,
+        downtime: 4,
+      },
+      {
+        id: "r-40",
+        date: "2025-08-30",
+        description: "Motor starter contactor burnt",
+        cost: 7500,
+        downtime: 1,
+      },
+      {
+        id: "r-41",
+        date: "2025-11-14",
+        description: "Shaft runout correction and seal kit",
+        cost: 18000,
+        downtime: 4,
+      },
+      {
+        id: "r-42",
+        date: "2026-02-02",
+        description: "Complete pump casing replacement",
+        cost: 28000,
+        downtime: 5,
+      },
+    ],
+    totalBreakdowns: 5,
+    totalCost: 78000,
+    totalDowntime: 16,
+  },
+  {
+    id: "rm-16",
+    organizationId: "unit-16",
+    equipment: mockEquipment[19],
+    repairs: [
+      {
+        id: "r-43",
+        date: "2025-03-22",
+        description: "Oil cooler line leak repair",
+        cost: 9000,
+        downtime: 2,
+      },
+      {
+        id: "r-44",
+        date: "2025-09-08",
+        description: "AVR board failure replacement",
+        cost: 35000,
+        downtime: 4,
+      },
+    ],
+    totalBreakdowns: 2,
+    totalCost: 44000,
+    totalDowntime: 6,
   },
 ];
 

@@ -85,16 +85,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAssetSelect }) => {
     setUnitId("");
   };
 
-  const hierarchySelected = Boolean(
-    corpsId && divisionId && brigadeId && unitId,
-  );
+  const hierarchySelected = Boolean(corpsId);
 
-  const currentHierarchy = hierarchySelected
+  const currentHierarchy: HierarchySelection | null = corpsId
     ? {
         corpsId,
-        divisionId,
-        brigadeId,
-        unitId,
+        ...(divisionId && { divisionId }),
+        ...(brigadeId && { brigadeId }),
+        ...(unitId && { unitId }),
       }
     : null;
 
@@ -112,7 +110,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAssetSelect }) => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Unit Selection</CardTitle>
+          <CardTitle>Organization Selection</CardTitle>
+          <CardDescription>
+            Select Corps to view all resources. Narrow down by Division,
+            Brigade, or Unit for detailed views.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -227,7 +229,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAssetSelect }) => {
       {showHierarchyError && (
         <Alert variant="destructive">
           <AlertDescription>
-            Please select all hierarchy levels before proceeding.
+            Please select at least Corps before proceeding.
           </AlertDescription>
         </Alert>
       )}

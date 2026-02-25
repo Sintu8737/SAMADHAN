@@ -4,8 +4,11 @@ import { AssetType, HierarchySelection, UserRole } from "../types";
 import {
   mockCurrentRepairState,
   mockReactiveRepairWorkflows,
+  getRelevantOrgIds,
+  getOrgName,
 } from "../data/mockData";
 import { useAuth } from "../contexts/AuthContext";
+import EquipmentInfoDialog from "./EquipmentInfoDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,15 +44,20 @@ const CurrentRepairStateComponent: React.FC<CurrentRepairStateProps> = ({
 
   const role = user?.role ?? "unit";
 
+  const relevantOrgIds = useMemo(
+    () => (selectedHierarchy ? getRelevantOrgIds(selectedHierarchy) : []),
+    [selectedHierarchy],
+  );
+
   const repairData = useMemo(
     () =>
       mockCurrentRepairState.filter(
         (record) =>
           record.equipment.assetType === assetType &&
-          (!selectedHierarchy ||
-            record.organizationId === selectedHierarchy.unitId),
+          (relevantOrgIds.length === 0 ||
+            relevantOrgIds.includes(record.organizationId)),
       ),
-    [assetType, selectedHierarchy],
+    [assetType, relevantOrgIds],
   );
 
   const workflowMap = useMemo(() => {
@@ -190,6 +198,7 @@ const CurrentRepairStateComponent: React.FC<CurrentRepairStateProps> = ({
             <TableHeader>
               <TableRow>
                 <TableHead>S.No</TableHead>
+                <TableHead>Unit</TableHead>
                 <TableHead>Equipment</TableHead>
                 <TableHead>Defect</TableHead>
                 <TableHead>Current Stage</TableHead>
@@ -207,8 +216,16 @@ const CurrentRepairStateComponent: React.FC<CurrentRepairStateProps> = ({
               {filteredData.map((record, index) => (
                 <TableRow key={record.id}>
                   <TableCell>{index + 1}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {getOrgName(record.organizationId)}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="font-medium">
-                    {record.equipment.name}
+                    <div className="flex items-center gap-1">
+                      {record.equipment.name}
+                      <EquipmentInfoDialog equipment={record.equipment} />
+                    </div>
                   </TableCell>
                   <TableCell>{record.defect}</TableCell>
                   <TableCell>

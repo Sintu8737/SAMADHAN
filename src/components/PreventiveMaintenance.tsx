@@ -1,7 +1,14 @@
 import React, { useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { AssetType, HierarchySelection, PreventiveQuarter } from "../types";
-import { mockEquipment, mockPreventiveMaintenance } from "../data/mockData";
+import {
+  mockEquipment,
+  mockPreventiveMaintenance,
+  getRelevantOrgIds,
+  getOrgName,
+} from "../data/mockData";
+import EquipmentInfoDialog from "./EquipmentInfoDialog";
+import PMStatsChart from "./PMStatsChart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,15 +51,20 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
     { quarter: "Q4", status: "pending" },
   ];
 
+  const relevantOrgIds = useMemo(
+    () => (selectedHierarchy ? getRelevantOrgIds(selectedHierarchy) : []),
+    [selectedHierarchy],
+  );
+
   const unitEquipment = useMemo(
     () =>
       mockEquipment.filter(
         (equipment) =>
           equipment.assetType === assetType &&
-          (!selectedHierarchy ||
-            equipment.organizationId === selectedHierarchy.unitId),
+          (relevantOrgIds.length === 0 ||
+            relevantOrgIds.includes(equipment.organizationId)),
       ),
-    [assetType, selectedHierarchy],
+    [assetType, relevantOrgIds],
   );
 
   const maintenanceData = useMemo(
@@ -141,12 +153,15 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
         </CardContent>
       </Card>
 
+      <PMStatsChart maintenanceData={filteredData} />
+
       <Card>
         <CardContent className="pt-6">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>S.No</TableHead>
+                <TableHead>Unit</TableHead>
                 <TableHead>Equipment</TableHead>
                 <TableHead>Make</TableHead>
                 <TableHead>Model</TableHead>
@@ -165,8 +180,16 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
                       }
                     >
                       <TableCell>{index + 1}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {getOrgName(record.organizationId)}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="font-medium">
-                        {record.equipment.name}
+                        <div className="flex items-center gap-1">
+                          {record.equipment.name}
+                          <EquipmentInfoDialog equipment={record.equipment} />
+                        </div>
                       </TableCell>
                       <TableCell>{record.equipment.make}</TableCell>
                       <TableCell>{record.equipment.model}</TableCell>
@@ -174,7 +197,7 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
 
                     {isExpanded && (
                       <TableRow>
-                        <TableCell colSpan={4}>
+                        <TableCell colSpan={5}>
                           <div className="rounded-md border">
                             <Table>
                               <TableHeader>

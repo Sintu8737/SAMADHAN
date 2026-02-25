@@ -1,7 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { AssetType, HierarchySelection, Repair } from "../types";
-import { mockReactiveMaintenance } from "../data/mockData";
+import {
+  mockReactiveMaintenance,
+  getRelevantOrgIds,
+  getOrgName,
+} from "../data/mockData";
+import EquipmentInfoDialog from "./EquipmentInfoDialog";
+import RMStatsChart from "./RMStatsChart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,16 +40,24 @@ const ReactiveMaintenanceComponent: React.FC<ReactiveMaintenanceProps> = ({
 }) => {
   const [selectedEquipment, setSelectedEquipment] = useState("");
   const [repairWindow, setRepairWindow] = useState("all");
+  const [expandedEquipmentId, setExpandedEquipmentId] = useState<string | null>(
+    null,
+  );
+
+  const relevantOrgIds = useMemo(
+    () => (selectedHierarchy ? getRelevantOrgIds(selectedHierarchy) : []),
+    [selectedHierarchy],
+  );
 
   const maintenanceData = useMemo(
     () =>
       mockReactiveMaintenance.filter(
         (record) =>
           record.equipment.assetType === assetType &&
-          (!selectedHierarchy ||
-            record.organizationId === selectedHierarchy.unitId),
+          (relevantOrgIds.length === 0 ||
+            relevantOrgIds.includes(record.organizationId)),
       ),
-    [assetType, selectedHierarchy],
+    [assetType, relevantOrgIds],
   );
 
   const filteredEquipment = maintenanceData.map((record) => record.equipment);
@@ -69,12 +83,18 @@ const ReactiveMaintenanceComponent: React.FC<ReactiveMaintenanceProps> = ({
         !selectedEquipment || record.equipment.id === selectedEquipment,
     )
     .map((record) => {
-      const repairs = getRepairsInWindow(record.repairs).slice(0, 3);
+      const repairs = getRepairsInWindow(record.repairs);
       const totalCost = repairs.reduce((sum, repair) => sum + repair.cost, 0);
+      const totalDowntime = repairs.reduce(
+        (sum, repair) => sum + repair.downtime,
+        0,
+      );
       return {
         ...record,
         repairs,
         totalCost,
+        filteredBreakdowns: repairs.length,
+        filteredDowntime: totalDowntime,
       };
     });
 
@@ -85,18 +105,9 @@ const ReactiveMaintenanceComponent: React.FC<ReactiveMaintenanceProps> = ({
       year: "numeric",
     });
 
-  const getRepairDisplay = (repairs: Repair[], index: number) => {
-    if (index >= repairs.length) {
-      return <span className="text-muted-foreground">-</span>;
-    }
-
-    const repair = repairs[index];
-    return (
-      <div className="space-y-1 text-xs">
-        <p className="font-medium">{formatDate(repair.date)}</p>
-        <p className="text-muted-foreground">{repair.description}</p>
-        <Badge variant="outline">₹{repair.cost.toLocaleString()}</Badge>
-      </div>
+  const toggleExpandedEquipment = (equipmentId: string) => {
+    setExpandedEquipmentId((current) =>
+      current === equipmentId ? null : equipmentId,
     );
   };
 
@@ -106,6 +117,8 @@ const ReactiveMaintenanceComponent: React.FC<ReactiveMaintenanceProps> = ({
         <ArrowLeft className="h-4 w-4" />
         Back to Assets
       </Button>
+
+      <RMStatsChart maintenanceData={maintenanceData} />
 
       <Card>
         <CardHeader>
@@ -160,40 +173,112 @@ const ReactiveMaintenanceComponent: React.FC<ReactiveMaintenanceProps> = ({
             <TableHeader>
               <TableRow>
                 <TableHead>S.No</TableHead>
+                <TableHead>Unit</TableHead>
                 <TableHead>Equipment</TableHead>
                 <TableHead>Make</TableHead>
                 <TableHead>Model</TableHead>
-                <TableHead>Repair 1</TableHead>
-                <TableHead>Repair 2</TableHead>
-                <TableHead>Repair 3</TableHead>
+                <TableHead className="text-center">Breakdowns</TableHead>
                 <TableHead className="text-center">
-                  Breakdowns (in days)
+                  Total Downtime (days)
                 </TableHead>
-                <TableHead className="text-right">
-                  Lifetime Repair Cost
-                </TableHead>
+                <TableHead className="text-right">Total Repair Cost</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.map((record, index) => (
-                <TableRow key={record.id}>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell className="font-medium">
-                    {record.equipment.name}
-                  </TableCell>
-                  <TableCell>{record.equipment.make}</TableCell>
-                  <TableCell>{record.equipment.model}</TableCell>
-                  <TableCell>{getRepairDisplay(record.repairs, 0)}</TableCell>
-                  <TableCell>{getRepairDisplay(record.repairs, 1)}</TableCell>
-                  <TableCell>{getRepairDisplay(record.repairs, 2)}</TableCell>
-                  <TableCell className="text-center font-medium">
-                    {record.totalBreakdowns}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    ₹{record.totalCost.toLocaleString()}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredData.map((record, index) => {
+                const isExpanded = expandedEquipmentId === record.equipment.id;
+
+                return (
+                  <React.Fragment key={record.id}>
+                    <TableRow
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() =>
+                        toggleExpandedEquipment(record.equipment.id)
+                      }
+                    >
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {getOrgName(record.organizationId)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-1">
+                          {record.equipment.name}
+                          <EquipmentInfoDialog equipment={record.equipment} />
+                        </div>
+                      </TableCell>
+                      <TableCell>{record.equipment.make}</TableCell>
+                      <TableCell>{record.equipment.model}</TableCell>
+                      <TableCell className="text-center font-medium">
+                        {record.filteredBreakdowns}
+                      </TableCell>
+                      <TableCell className="text-center font-medium">
+                        {record.filteredDowntime}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        ₹{record.totalCost.toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+
+                    {isExpanded && (
+                      <TableRow>
+                        <TableCell colSpan={8}>
+                          <div className="rounded-md border">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>S.No</TableHead>
+                                  <TableHead>Date</TableHead>
+                                  <TableHead>Description</TableHead>
+                                  <TableHead className="text-center">
+                                    Downtime (days)
+                                  </TableHead>
+                                  <TableHead className="text-right">
+                                    Cost
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {record.repairs.length > 0 ? (
+                                  record.repairs.map((repair, rIndex) => (
+                                    <TableRow key={repair.id}>
+                                      <TableCell>{rIndex + 1}</TableCell>
+                                      <TableCell className="font-medium">
+                                        {formatDate(repair.date)}
+                                      </TableCell>
+                                      <TableCell>
+                                        {repair.description}
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        {repair.downtime}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <Badge variant="outline">
+                                          ₹{repair.cost.toLocaleString()}
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                ) : (
+                                  <TableRow>
+                                    <TableCell
+                                      colSpan={5}
+                                      className="text-center text-muted-foreground"
+                                    >
+                                      No repairs in selected window
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </TableBody>
           </Table>
 
