@@ -164,7 +164,7 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
                 <TableHead>Unit</TableHead>
                 <TableHead>Equipment</TableHead>
                 <TableHead>Make</TableHead>
-                <TableHead>Model</TableHead>
+                <TableHead>Registration No.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
