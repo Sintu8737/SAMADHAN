@@ -50,7 +50,7 @@ const DashboardContent: React.FC = () => {
     maintenance: MaintenanceType,
     hierarchy: HierarchySelection,
   ) => {
-    if (!isAuthenticated) {
+    if (isAuthenticated) {
       setPendingSelection({ asset, maintenance, hierarchy });
       setIsLoginModalOpen(true);
       return;
