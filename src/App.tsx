@@ -1,28 +1,19 @@
 import React, { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AssetType, HierarchySelection, MaintenanceType } from "./types";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import LandingPage from "./components/LandingPage";
 import PreventiveMaintenanceComponent from "./components/PreventiveMaintenance";
 import ReactiveMaintenanceComponent from "./components/ReactiveMaintenance";
 import CurrentRepairStateComponent from "./components/CurrentRepairState";
 import ArmyHeader from "./components/ArmyHeader";
-import LoginModal from "./components/LoginModal";
 
 type AppState = "landing" | "preventive" | "reactive" | "current-repair";
 
 const DashboardContent: React.FC = () => {
-  const { isAuthenticated, login } = useAuth();
   const [currentState, setCurrentState] = useState<AppState>("landing");
   const [currentAsset, setCurrentAsset] = useState<AssetType>("generator");
   const [selectedHierarchy, setSelectedHierarchy] =
     useState<HierarchySelection | null>(null);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [pendingSelection, setPendingSelection] = useState<{
-    asset: AssetType;
-    maintenance: MaintenanceType;
-    hierarchy: HierarchySelection;
-  } | null>(null);
 
   const navigateToMaintenance = (
     asset: AssetType,
@@ -50,12 +41,6 @@ const DashboardContent: React.FC = () => {
     maintenance: MaintenanceType,
     hierarchy: HierarchySelection,
   ) => {
-    if (!isAuthenticated) {
-      setPendingSelection({ asset, maintenance, hierarchy });
-      setIsLoginModalOpen(true);
-      return;
-    }
-
     navigateToMaintenance(asset, maintenance, hierarchy);
   };
 
@@ -117,37 +102,11 @@ const DashboardContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <ArmyHeader
-        title={getPageTitle()}
-        showLogout={true}
-        onLogout={() => {
-          setCurrentState("landing");
-          setPendingSelection(null);
-        }}
-      />
+      <ArmyHeader title={getPageTitle()} />
 
       <main className="mx-auto w-full max-w-7xl p-4 md:p-6">
         {renderCurrentPage()}
       </main>
-
-      {isLoginModalOpen && (
-        <LoginModal
-          onClose={() => setIsLoginModalOpen(false)}
-          onLoginSuccess={(user) => {
-            login(user);
-            setIsLoginModalOpen(false);
-
-            if (pendingSelection) {
-              navigateToMaintenance(
-                pendingSelection.asset,
-                pendingSelection.maintenance,
-                pendingSelection.hierarchy,
-              );
-              setPendingSelection(null);
-            }
-          }}
-        />
-      )}
     </div>
   );
 };
@@ -164,11 +123,9 @@ const AppRoutes: React.FC = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   );
 }
 
