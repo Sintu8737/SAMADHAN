@@ -44,11 +44,46 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
     null,
   );
 
+  const getDefaultDueDate = (quarter: PreventiveQuarter["quarter"]) => {
+    const year = new Date().getFullYear();
+    const quarterDueDates: Record<PreventiveQuarter["quarter"], string> = {
+      Q1: `${year}-03-31`,
+      Q2: `${year}-06-30`,
+      Q3: `${year}-09-30`,
+      Q4: `${year}-12-31`,
+    };
+    return quarterDueDates[quarter];
+  };
+
+  const normalizeQuarter = (
+    quarterData: PreventiveQuarter,
+  ): PreventiveQuarter => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const due = new Date(quarterData.dueDate);
+    due.setHours(0, 0, 0, 0);
+
+    let status: "completed" | "scheduled" | "overdue";
+    if (quarterData.completedDate) {
+      status = "completed";
+    } else if (
+      !Number.isNaN(due.getTime()) &&
+      due.getTime() < today.getTime()
+    ) {
+      status = "overdue";
+    } else {
+      status = "scheduled";
+    }
+
+    return { ...quarterData, status };
+  };
+
   const defaultQuarters: PreventiveQuarter[] = [
-    { quarter: "Q1", status: "pending" },
-    { quarter: "Q2", status: "pending" },
-    { quarter: "Q3", status: "pending" },
-    { quarter: "Q4", status: "pending" },
+    { quarter: "Q1", dueDate: getDefaultDueDate("Q1") },
+    { quarter: "Q2", dueDate: getDefaultDueDate("Q2") },
+    { quarter: "Q3", dueDate: getDefaultDueDate("Q3") },
+    { quarter: "Q4", dueDate: getDefaultDueDate("Q4") },
   ];
 
   const relevantOrgIds = useMemo(
@@ -77,14 +112,17 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
         );
 
         if (existingRecord) {
-          return existingRecord;
+          return {
+            ...existingRecord,
+            quarters: existingRecord.quarters.map(normalizeQuarter),
+          };
         }
 
         return {
           id: `pm-missing-${equipment.id}`,
           organizationId: equipment.organizationId,
           equipment,
-          quarters: defaultQuarters,
+          quarters: defaultQuarters.map(normalizeQuarter),
         };
       }),
     [defaultQuarters, unitEquipment],
@@ -96,14 +134,16 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
     (record) => !selectedEquipment || record.equipment.id === selectedEquipment,
   );
 
-  const getStatusBadge = (status: "completed" | "pending" | "overdue") => {
+  const getStatusBadge = (status: "completed" | "scheduled" | "overdue") => {
     if (status === "completed") {
       return (
         <Badge className="bg-emerald-600 hover:bg-emerald-700">Completed</Badge>
       );
     }
-    if (status === "pending") {
-      return <Badge className="bg-amber-500 hover:bg-amber-600">Pending</Badge>;
+    if (status === "scheduled") {
+      return (
+        <Badge className="bg-amber-500 hover:bg-amber-600">Scheduled</Badge>
+      );
     }
     return <Badge variant="destructive">Overdue</Badge>;
   };
@@ -204,7 +244,8 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
                                 <TableRow>
                                   <TableHead>Quarter</TableHead>
                                   <TableHead>Status</TableHead>
-                                  <TableHead>Completion Date</TableHead>
+                                  <TableHead>Due Date</TableHead>
+                                  <TableHead>Completed Date</TableHead>
                                   <TableHead>Comments</TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -217,10 +258,18 @@ const PreventiveMaintenanceComponent: React.FC<PreventiveMaintenanceProps> = ({
                                       {quarterData.quarter}
                                     </TableCell>
                                     <TableCell>
-                                      {getStatusBadge(quarterData.status)}
+                                      {getStatusBadge(
+                                        (quarterData.status as
+                                          | "completed"
+                                          | "scheduled"
+                                          | "overdue") ?? "scheduled",
+                                      )}
                                     </TableCell>
                                     <TableCell className="text-muted-foreground">
-                                      {quarterData.date || "-"}
+                                      {quarterData.dueDate || "-"}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                      {quarterData.completedDate || "-"}
                                     </TableCell>
                                     <TableCell className="text-muted-foreground">
                                       {quarterData.comment || "-"}

@@ -32,7 +32,7 @@ import {
   CalendarClock,
   AlertTriangle,
 } from "lucide-react";
-import { computeCurrentStage } from "../data/mockData";
+import { computeCurrentStage, getOrgName } from "../data/mockData";
 
 interface CRSStatsChartProps {
   crsData: CurrentRepairState[];
@@ -99,6 +99,13 @@ const delayBarConfig = {
   },
 } satisfies ChartConfig;
 
+const handoverUnitBarConfig = {
+  avgDays: {
+    label: "Avg Handover Days",
+    color: "hsl(221, 83%, 53%)",
+  },
+} satisfies ChartConfig;
+
 const CRSStatsChart: React.FC<CRSStatsChartProps> = ({ crsData }) => {
   const stats = useMemo(() => {
     // Avg time calculations for each stage transition
@@ -123,6 +130,12 @@ const CRSStatsChart: React.FC<CRSStatsChartProps> = ({ crsData }) => {
         totalDelayDays: number;
         equipments: string[];
       }
+    >();
+
+    // Unit-wise handover-to-vendor duration
+    const handoverByUnit = new Map<
+      string,
+      { totalDays: number; count: number }
     >();
 
     crsData.forEach((record) => {
@@ -201,6 +214,20 @@ const CRSStatsChart: React.FC<CRSStatsChartProps> = ({ crsData }) => {
 
         vendorDelays.set(vendorName, existing);
       }
+
+      if (record.woFwdByUnit && record.handoverToVendor) {
+        const days = daysBetween(record.woFwdByUnit, record.handoverToVendor);
+        if (days >= 0) {
+          const existing = handoverByUnit.get(record.organizationId) ?? {
+            totalDays: 0,
+            count: 0,
+          };
+          handoverByUnit.set(record.organizationId, {
+            totalDays: existing.totalDays + days,
+            count: existing.count + 1,
+          });
+        }
+      }
     });
 
     const avg = (arr: number[]) =>
@@ -264,6 +291,14 @@ const CRSStatsChart: React.FC<CRSStatsChartProps> = ({ crsData }) => {
         (a, b) => b.missed - a.missed || b.totalDelayDays - a.totalDelayDays,
       );
 
+    const unitHandoverSummary = Array.from(handoverByUnit.entries())
+      .map(([orgId, data]) => ({
+        unit: getOrgName(orgId),
+        avgDays: parseFloat((data.totalDays / data.count).toFixed(1)),
+        count: data.count,
+      }))
+      .sort((a, b) => b.avgDays - a.avgDays);
+
     return {
       stageAvgs,
       pdcBeforeTime,
@@ -272,6 +307,7 @@ const CRSStatsChart: React.FC<CRSStatsChartProps> = ({ crsData }) => {
       pdcPending,
       pdcTotal,
       vendorDelaySummary,
+      unitHandoverSummary,
     };
   }, [crsData]);
 
@@ -605,6 +641,94 @@ const CRSStatsChart: React.FC<CRSStatsChartProps> = ({ crsData }) => {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Unit-wise Handover Time */}
+        <div className="border rounded-lg p-3 space-y-3">
+          <p className="text-sm font-medium text-slate-700 flex items-center gap-2">
+            <Clock className="h-4 w-4 text-blue-600" />
+            Average Time by Unit to Handover Asset to Vendor
+          </p>
+
+          {stats.unitHandoverSummary.length > 0 ? (
+            <ChartContainer
+              config={handoverUnitBarConfig}
+              className="w-full"
+              style={{
+                height: `${Math.max(170, stats.unitHandoverSummary.length * 40)}px`,
+              }}
+            >
+              <BarChart
+                data={stats.unitHandoverSummary}
+                layout="vertical"
+                margin={{ left: 0, right: 24, top: 0, bottom: 0 }}
+              >
+                <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                <YAxis
+                  dataKey="unit"
+                  type="category"
+                  width={140}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 10 }}
+                />
+                <XAxis
+                  type="number"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 10 }}
+                  label={{
+                    value: "Days",
+                    position: "insideBottomRight",
+                    offset: -5,
+                    style: { fontSize: 10, fill: "#94a3b8" },
+                  }}
+                />
+                <ChartTooltip
+                  cursor={{ fill: "hsl(0, 0%, 0%, 0.04)" }}
+                  content={
+                    <ChartTooltipContent
+                      hideLabel
+                      formatter={(value, _name, item) => {
+                        const entry = item.payload;
+                        return (
+                          <div className="space-y-1">
+                            <p className="font-medium text-slate-700">
+                              {entry.unit}
+                            </p>
+                            <p className="text-sm">{String(value)} days avg</p>
+                            <p className="text-xs text-muted-foreground">
+                              Based on {entry.count} record(s)
+                            </p>
+                          </div>
+                        );
+                      }}
+                    />
+                  }
+                />
+                <Bar
+                  dataKey="avgDays"
+                  fill="hsl(221, 83%, 53%)"
+                  radius={[0, 4, 4, 0]}
+                  barSize={18}
+                >
+                  <LabelList
+                    dataKey="avgDays"
+                    position="right"
+                    formatter={(val: number) => `${val}d`}
+                    style={{ fontSize: 11, fontWeight: 700, fill: "#1d4ed8" }}
+                  />
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          ) : (
+            <div className="flex items-center justify-center py-6 text-muted-foreground">
+              <p className="text-sm">
+                No records available with vendor handover date for this
+                selection.
+              </p>
             </div>
           )}
         </div>

@@ -37,8 +37,8 @@ const chartConfig = {
     label: "Completed",
     color: "hsl(152, 57%, 36%)",
   },
-  pending: {
-    label: "Pending",
+  scheduled: {
+    label: "Scheduled",
     color: "hsl(40, 96%, 50%)",
   },
   overdue: {
@@ -49,7 +49,7 @@ const chartConfig = {
 
 const COLORS = [
   chartConfig.completed.color,
-  chartConfig.pending.color,
+  chartConfig.scheduled.color,
   chartConfig.overdue.color,
 ];
 
@@ -63,7 +63,7 @@ const overdueBarConfig = {
 const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
   const stats = useMemo(() => {
     let completed = 0;
-    let pending = 0;
+    let scheduled = 0;
     let overdue = 0;
     const overdueByReason = new Map<
       string,
@@ -74,8 +74,8 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
       record.quarters.forEach((q) => {
         if (q.status === "completed") {
           completed++;
-        } else if (q.status === "pending") {
-          pending++;
+        } else if (q.status === "scheduled") {
+          scheduled++;
         } else if (q.status === "overdue") {
           overdue++;
           const reason = q.comment?.trim() || "No reason specified";
@@ -90,7 +90,7 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
       });
     });
 
-    const total = completed + pending + overdue;
+    const total = completed + scheduled + overdue;
 
     const overdueReasons: OverdueReasonEntry[] = Array.from(
       overdueByReason.entries(),
@@ -102,13 +102,13 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
       }))
       .sort((a, b) => b.count - a.count);
 
-    return { completed, pending, overdue, total, overdueReasons };
+    return { completed, scheduled, overdue, total, overdueReasons };
   }, [maintenanceData]);
 
   const pieData = useMemo(
     () => [
       { name: "completed", value: stats.completed, fill: COLORS[0] },
-      { name: "pending", value: stats.pending, fill: COLORS[1] },
+      { name: "scheduled", value: stats.scheduled, fill: COLORS[1] },
       { name: "overdue", value: stats.overdue, fill: COLORS[2] },
     ],
     [stats],
@@ -226,14 +226,14 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
                         <Clock className="h-3.5 w-3.5 text-amber-600" />
                       </div>
                       <p className="text-[11px] font-semibold text-amber-800 uppercase tracking-wide">
-                        Pending
+                        Scheduled
                       </p>
                     </div>
                     <p className="text-2xl font-extrabold text-amber-700 leading-none">
-                      {stats.pending}
+                      {stats.scheduled}
                     </p>
                     <p className="text-[11px] text-amber-600/80 mt-1">
-                      {pct(stats.pending)}% of total
+                      {pct(stats.scheduled)}% of total
                     </p>
                   </div>
                 </div>

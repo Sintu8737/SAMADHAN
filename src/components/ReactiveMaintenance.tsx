@@ -98,6 +98,70 @@ const ReactiveMaintenanceComponent: React.FC<ReactiveMaintenanceProps> = ({
       };
     });
 
+  const maxBreakdowns = useMemo(
+    () => Math.max(...filteredData.map((r) => r.filteredBreakdowns), 1),
+    [filteredData],
+  );
+
+  const maxDowntime = useMemo(
+    () => Math.max(...filteredData.map((r) => r.filteredDowntime), 1),
+    [filteredData],
+  );
+
+  const maxCost = useMemo(
+    () => Math.max(...filteredData.map((r) => r.totalCost), 1),
+    [filteredData],
+  );
+
+  const getBreakdownHeatmap = (count: number) => {
+    const ratio = count / maxBreakdowns;
+    if (ratio >= 0.75)
+      return { bg: "rgba(220, 38, 38, 0.15)", text: "text-red-700" };
+    if (ratio >= 0.5)
+      return { bg: "rgba(245, 158, 11, 0.13)", text: "text-amber-700" };
+    if (ratio >= 0.25)
+      return { bg: "rgba(234, 179, 8, 0.10)", text: "text-yellow-700" };
+    return { bg: "rgba(34, 197, 94, 0.08)", text: "text-green-700" };
+  };
+
+  const getDowntimeHeatmap = (days: number) => {
+    const ratio = days / maxDowntime;
+    if (ratio >= 0.75)
+      return { bg: "rgba(220, 38, 38, 0.15)", text: "text-red-700" };
+    if (ratio >= 0.5)
+      return { bg: "rgba(245, 158, 11, 0.13)", text: "text-amber-700" };
+    if (ratio >= 0.25)
+      return { bg: "rgba(234, 179, 8, 0.10)", text: "text-yellow-700" };
+    return { bg: "rgba(34, 197, 94, 0.08)", text: "text-green-700" };
+  };
+
+  const getCostHeatmap = (cost: number) => {
+    const ratio = cost / maxCost;
+    if (ratio >= 0.75)
+      return {
+        bg: "rgba(220, 38, 38, 0.18)",
+        text: "text-red-700",
+        border: "border-l-2 border-red-500",
+      };
+    if (ratio >= 0.5)
+      return {
+        bg: "rgba(245, 158, 11, 0.16)",
+        text: "text-amber-700",
+        border: "border-l-2 border-amber-500",
+      };
+    if (ratio >= 0.25)
+      return {
+        bg: "rgba(234, 179, 8, 0.12)",
+        text: "text-yellow-700",
+        border: "border-l-2 border-yellow-400",
+      };
+    return {
+      bg: "rgba(34, 197, 94, 0.10)",
+      text: "text-green-700",
+      border: "border-l-2 border-green-400",
+    };
+  };
+
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString("en-IN", {
       day: "2-digit",
@@ -210,13 +274,32 @@ const ReactiveMaintenanceComponent: React.FC<ReactiveMaintenanceProps> = ({
                       </TableCell>
                       <TableCell>{record.equipment.make}</TableCell>
                       <TableCell>{record.equipment.model}</TableCell>
-                      <TableCell className="text-center font-medium">
+                      <TableCell
+                        className={`text-center font-semibold ${getBreakdownHeatmap(record.filteredBreakdowns).text}`}
+                        style={{
+                          backgroundColor: getBreakdownHeatmap(
+                            record.filteredBreakdowns,
+                          ).bg,
+                        }}
+                      >
                         {record.filteredBreakdowns}
                       </TableCell>
-                      <TableCell className="text-center font-medium">
+                      <TableCell
+                        className={`text-center font-semibold ${getDowntimeHeatmap(record.filteredDowntime).text}`}
+                        style={{
+                          backgroundColor: getDowntimeHeatmap(
+                            record.filteredDowntime,
+                          ).bg,
+                        }}
+                      >
                         {record.filteredDowntime}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell
+                        className={`text-right font-semibold ${getCostHeatmap(record.totalCost).text} ${getCostHeatmap(record.totalCost).border}`}
+                        style={{
+                          backgroundColor: getCostHeatmap(record.totalCost).bg,
+                        }}
+                      >
                         ₹{record.totalCost.toLocaleString()}
                       </TableCell>
                     </TableRow>

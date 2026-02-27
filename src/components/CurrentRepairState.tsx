@@ -26,7 +26,6 @@ import {
   mockReactiveRepairWorkflows,
   getRelevantOrgIds,
   getOrgName,
-  getElapsedDays,
   computeCurrentStage,
 } from "../data/mockData";
 import { useAuth } from "../contexts/AuthContext";
@@ -155,6 +154,7 @@ function getFlowStageStatus(
   stageKey: FlowStageKey,
 ): "completed" | "current" | "pending" {
   const dateValue = record[stageKey];
+
   if (dateValue) {
     if (
       stageIndex < currentStageIndex ||
@@ -170,6 +170,102 @@ function getFlowStageStatus(
     return "current";
   }
   return "pending";
+}
+
+function getElapsedFromHandover(record: CurrentRepairState): number | null {
+  if (!record.handoverToVendor) {
+    return null;
+  }
+
+  const start = new Date(record.handoverToVendor);
+  const end = record.repairDone ? new Date(record.repairDone) : new Date();
+  end.setHours(0, 0, 0, 0);
+
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+    return null;
+  }
+
+  const diffMs = endMs - startMs;
+  return diffMs >= 0 ? Math.floor(diffMs / (1000 * 60 * 60 * 24)) : null;
+}
+
+function hasCrossedPdcInProgress(record: CurrentRepairState): boolean {
+  if (record.repairDone || !record.vendorPDC) {
+    return false;
+  }
+
+  const pdcDate = new Date(record.vendorPDC);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return (
+    !Number.isNaN(pdcDate.getTime()) && today.getTime() > pdcDate.getTime()
+  );
+}
+
+function isCompletedAfterPdc(record: CurrentRepairState): boolean {
+  if (!record.repairDone || !record.vendorPDC) {
+    return false;
+  }
+
+  const repairDone = new Date(record.repairDone);
+  const pdcDate = new Date(record.vendorPDC);
+  if (Number.isNaN(repairDone.getTime()) || Number.isNaN(pdcDate.getTime())) {
+    return false;
+  }
+
+  return repairDone.getTime() > pdcDate.getTime();
+}
+
+function getDaysBetweenDates(
+  startDate: string,
+  endDate: string,
+): number | null {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+    return null;
+  }
+
+  const diffMs = endMs - startMs;
+  if (diffMs < 0) {
+    return null;
+  }
+
+  return Math.round(diffMs / (1000 * 60 * 60 * 24));
+}
+
+function getLateByDays(record: CurrentRepairState): number | null {
+  if (!record.vendorPDC) {
+    return null;
+  }
+
+  const isLateCompleted = isCompletedAfterPdc(record);
+  const isLateInProgress = hasCrossedPdcInProgress(record);
+
+  if (!isLateCompleted && !isLateInProgress) {
+    return null;
+  }
+
+  const pdcDate = new Date(record.vendorPDC);
+  const endDate = record.repairDone ? new Date(record.repairDone) : new Date();
+  pdcDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+
+  const pdcMs = pdcDate.getTime();
+  const endMs = endDate.getTime();
+  if (Number.isNaN(pdcMs) || Number.isNaN(endMs) || endMs <= pdcMs) {
+    return null;
+  }
+
+  return Math.floor((endMs - pdcMs) / (1000 * 60 * 60 * 24));
 }
 
 const CurrentRepairStateComponent: React.FC<CurrentRepairStateProps> = ({
@@ -248,16 +344,31 @@ const CurrentRepairStateComponent: React.FC<CurrentRepairStateProps> = ({
     });
   };
 
-  const getElapsedBadge = (days: number) => {
-    if (days <= 7) {
+  const getElapsedBadge = (record: CurrentRepairState) => {
+    const elapsedDays = getElapsedFromHandover(record);
+    if (elapsedDays === null) {
+      return <span className="text-muted-foreground">-</span>;
+    }
+
+    if (isCompletedAfterPdc(record)) {
+      return <Badge variant="destructive">{elapsedDays}d</Badge>;
+    }
+
+    if (record.repairDone) {
       return (
-        <Badge className="bg-emerald-600 hover:bg-emerald-700">{days}d</Badge>
+        <Badge className="bg-emerald-600 hover:bg-emerald-700">
+          {elapsedDays}d
+        </Badge>
       );
     }
-    if (days <= 14) {
-      return <Badge className="bg-amber-500 hover:bg-amber-600">{days}d</Badge>;
+
+    if (hasCrossedPdcInProgress(record)) {
+      return <Badge variant="destructive">{elapsedDays}d</Badge>;
     }
-    return <Badge variant="destructive">{days}d</Badge>;
+
+    return (
+      <Badge className="bg-amber-500 hover:bg-amber-600">{elapsedDays}d</Badge>
+    );
   };
 
   const getStageBadge = (stage: WorkflowStage) => {
@@ -368,13 +479,18 @@ const CurrentRepairStateComponent: React.FC<CurrentRepairStateProps> = ({
               <TableBody>
                 {filteredData.map((record, index) => {
                   const isExpanded = expandedRow === record.id;
+                  const isOverdueInProgress = hasCrossedPdcInProgress(record);
                   const stage = computeCurrentStage(record);
                   const stageIdx = getStageIndex(stage);
                   const totalStages = STAGE_ORDER.length;
                   return (
                     <React.Fragment key={record.id}>
                       <TableRow
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className={`cursor-pointer transition-colors border-l-2 ${
+                          isOverdueInProgress
+                            ? "bg-red-50/60 border-l-red-300 hover:bg-red-50"
+                            : "border-l-transparent hover:bg-muted/50"
+                        }`}
                         onClick={() => toggleRow(record.id)}
                       >
                         <TableCell className="px-2">
@@ -413,7 +529,17 @@ const CurrentRepairStateComponent: React.FC<CurrentRepairStateProps> = ({
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-0.5">
-                            {getStageBadge(stage)}
+                            <div className="flex items-center gap-1.5">
+                              {getStageBadge(stage)}
+                              {hasCrossedPdcInProgress(record) && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-red-50 text-red-700 border-red-200"
+                                >
+                                  Overdue
+                                </Badge>
+                              )}
+                            </div>
                             {record.vendorName && (
                               <span
                                 className="text-[10px] text-violet-600 font-medium truncate max-w-[120px]"
@@ -434,9 +560,7 @@ const CurrentRepairStateComponent: React.FC<CurrentRepairStateProps> = ({
                         <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
                           {formatDate(record.woFwdByUnit)}
                         </TableCell>
-                        <TableCell>
-                          {getElapsedBadge(getElapsedDays(record))}
-                        </TableCell>
+                        <TableCell>{getElapsedBadge(record)}</TableCell>
                       </TableRow>
 
                       {isExpanded && (
@@ -503,7 +627,9 @@ const WorkflowFlowVisualization: React.FC<{ record: CurrentRepairState }> = ({
   const stage = computeCurrentStage(record);
   const currentStageIndex = getStageIndex(stage);
   const isRepairComplete = stage === "repair-complete";
-  const elapsed = getElapsedDays(record);
+  const elapsed = getElapsedFromHandover(record);
+  const isDelayedInProgress = hasCrossedPdcInProgress(record);
+  const isDelayedCompletion = isCompletedAfterPdc(record);
 
   const formatDateFull = (d?: string) => {
     if (!d) return null;
@@ -530,7 +656,9 @@ const WorkflowFlowVisualization: React.FC<{ record: CurrentRepairState }> = ({
               {record.equipment.make} {record.equipment.model}
             </Badge>
             <Badge variant="outline" className="text-[10px] font-mono">
-              S/N: {record.equipment.serialNumber}
+              {record.equipment.assetType === "generator"
+                ? `Reg No: ${record.equipment.serialNumber}`
+                : `S/N: ${record.equipment.serialNumber}`}
             </Badge>
             <Badge variant="outline" className="whitespace-nowrap text-[10px]">
               {getOrgName(record.organizationId)}
@@ -555,6 +683,20 @@ const WorkflowFlowVisualization: React.FC<{ record: CurrentRepairState }> = ({
                 {formatDateFull(record.woFwdByUnit)}
               </span>
             </span>
+            {typeof record.serviceabilityState === "boolean" && (
+              <span className="text-slate-500">
+                Serviceability:{" "}
+                <span
+                  className={`font-medium ${
+                    record.serviceabilityState
+                      ? "text-emerald-700"
+                      : "text-red-700"
+                  }`}
+                >
+                  {record.serviceabilityState ? "Serviceable" : "Unserviceable"}
+                </span>
+              </span>
+            )}
             {record.vendorName && (
               <span className="text-slate-500">
                 Vendor:{" "}
@@ -585,25 +727,53 @@ const WorkflowFlowVisualization: React.FC<{ record: CurrentRepairState }> = ({
         {/* Right: Status card */}
         <div className="flex flex-col items-center justify-center gap-1.5 min-w-[120px]">
           {isRepairComplete ? (
-            <div className="flex flex-col items-center gap-1 px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200">
-              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-              <span className="text-xs font-bold text-emerald-700">
-                Repair Complete
-              </span>
-              <span className="text-[10px] text-emerald-600">
-                {elapsed} days total
-              </span>
-            </div>
+            isDelayedCompletion ? (
+              <div className="flex flex-col items-center gap-1 px-4 py-2.5 rounded-lg bg-red-50 border border-red-200">
+                <CheckCircle2 className="h-6 w-6 text-red-600" />
+                <span className="text-xs font-bold text-red-700">
+                  Repair Complete (Late)
+                </span>
+                <span className="text-[10px] text-red-600">
+                  {elapsed !== null ? `${elapsed} days total` : "-"}
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-1 px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                <span className="text-xs font-bold text-emerald-700">
+                  Repair Complete
+                </span>
+                <span className="text-[10px] text-emerald-600">
+                  {elapsed !== null ? `${elapsed} days total` : "-"}
+                </span>
+              </div>
+            )
           ) : (
-            <div className="flex flex-col items-center gap-1 px-4 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
-              <Clock className="h-6 w-6 text-amber-600" />
-              <span className="text-xs font-bold text-amber-700">
+            <div
+              className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-lg border ${
+                isDelayedInProgress
+                  ? "bg-red-50 border-red-200"
+                  : "bg-amber-50 border-amber-200"
+              }`}
+            >
+              <Clock
+                className={`h-6 w-6 ${
+                  isDelayedInProgress ? "text-red-600" : "text-amber-600"
+                }`}
+              />
+              <span
+                className={`text-xs font-bold ${
+                  isDelayedInProgress ? "text-red-700" : "text-amber-700"
+                }`}
+              >
                 In Progress
               </span>
               <span
-                className={`text-[10px] font-semibold ${elapsed > 14 ? "text-red-600" : "text-amber-600"}`}
+                className={`text-[10px] font-semibold ${
+                  isDelayedInProgress ? "text-red-600" : "text-amber-600"
+                }`}
               >
-                {elapsed} days elapsed
+                {elapsed !== null ? `${elapsed} days elapsed` : "-"}
               </span>
             </div>
           )}
@@ -623,9 +793,27 @@ const WorkflowFlowVisualization: React.FC<{ record: CurrentRepairState }> = ({
             record,
             stg.key,
           );
-          const dateValue = record[stg.key];
           const IconComponent = stg.icon;
           const isLast = idx === FLOW_STAGES.length - 1;
+          const nextStage = !isLast ? FLOW_STAGES[idx + 1] : null;
+          const dateValue = record[stg.key];
+          const nextDateValue = nextStage ? record[nextStage.key] : undefined;
+          const isVendorPdcToRepairConnector =
+            stg.key === "vendorPDC" && nextStage?.key === "repairDone";
+          const isLateRepairDoneNode =
+            stg.key === "repairDone" && isDelayedCompletion;
+          const isOnTimeRepairDoneNode =
+            stg.key === "repairDone" &&
+            status === "completed" &&
+            !isDelayedCompletion;
+          const lateByDays = isVendorPdcToRepairConnector
+            ? getLateByDays(record)
+            : null;
+          const isLateConnector = lateByDays !== null;
+          const connectorDays =
+            typeof dateValue === "string" && typeof nextDateValue === "string"
+              ? getDaysBetweenDates(dateValue, nextDateValue)
+              : null;
 
           // Use vendor name for vendor-related stages
           const actorLabel =
@@ -644,11 +832,15 @@ const WorkflowFlowVisualization: React.FC<{ record: CurrentRepairState }> = ({
                   className={`
                     relative flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all
                     ${
-                      status === "completed"
-                        ? "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200"
-                        : status === "current"
-                          ? "bg-amber-100 border-amber-500 text-amber-700 shadow-md shadow-amber-200 ring-4 ring-amber-50"
-                          : "bg-slate-50 border-slate-300 text-slate-400"
+                      isLateRepairDoneNode
+                        ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-300 ring-4 ring-red-100"
+                        : isOnTimeRepairDoneNode
+                          ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-300 ring-4 ring-emerald-100"
+                          : status === "completed"
+                            ? "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200"
+                            : status === "current"
+                              ? "bg-amber-100 border-amber-500 text-amber-700 shadow-md shadow-amber-200 ring-4 ring-amber-50"
+                              : "bg-slate-50 border-slate-300 text-slate-400"
                     }
                   `}
                 >
@@ -664,11 +856,15 @@ const WorkflowFlowVisualization: React.FC<{ record: CurrentRepairState }> = ({
                 {/* Label */}
                 <span
                   className={`mt-2 text-[11px] font-semibold text-center leading-tight max-w-[90px] ${
-                    status === "completed"
+                    isLateRepairDoneNode
                       ? "text-emerald-700"
-                      : status === "current"
-                        ? "text-amber-700"
-                        : "text-slate-500"
+                      : isOnTimeRepairDoneNode
+                        ? "text-emerald-800"
+                        : status === "completed"
+                          ? "text-emerald-700"
+                          : status === "current"
+                            ? "text-amber-700"
+                            : "text-slate-500"
                   }`}
                 >
                   {stg.shortLabel}
@@ -677,11 +873,15 @@ const WorkflowFlowVisualization: React.FC<{ record: CurrentRepairState }> = ({
                 {/* Date */}
                 <span
                   className={`mt-0.5 text-[10px] ${
-                    status === "completed"
+                    isLateRepairDoneNode
                       ? "text-emerald-600"
-                      : status === "current"
-                        ? "text-amber-600"
-                        : "text-slate-400"
+                      : isOnTimeRepairDoneNode
+                        ? "text-emerald-700 font-semibold"
+                        : status === "completed"
+                          ? "text-emerald-600"
+                          : status === "current"
+                            ? "text-amber-600"
+                            : "text-slate-400"
                   }`}
                 >
                   {dateValue ? formatDateFull(dateValue) : "—"}
@@ -702,19 +902,38 @@ const WorkflowFlowVisualization: React.FC<{ record: CurrentRepairState }> = ({
 
               {/* Connector */}
               {!isLast && (
-                <div className="flex items-center pt-5 -mx-0.5 shrink-0">
-                  <div
-                    className={`h-0.5 w-6 ${
-                      status === "completed" ? "bg-emerald-400" : "bg-slate-200"
+                <div className="flex flex-col items-center pt-3 -mx-0.5 shrink-0 min-w-[30px]">
+                  <span
+                    className={`h-3 text-[10px] font-medium ${
+                      isLateConnector ? "text-red-600" : "text-slate-500"
                     }`}
-                  />
-                  <div
-                    className={`w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-l-[6px] ${
-                      status === "completed"
-                        ? "border-l-emerald-400"
-                        : "border-l-slate-200"
-                    }`}
-                  />
+                  >
+                    {isLateConnector
+                      ? `Late by ${lateByDays}d`
+                      : connectorDays !== null
+                        ? `${connectorDays}d`
+                        : ""}
+                  </span>
+                  <div className="flex items-center pt-1">
+                    <div
+                      className={`h-0.5 w-6 ${
+                        isLateConnector
+                          ? "bg-red-400"
+                          : status === "completed"
+                            ? "bg-emerald-400"
+                            : "bg-slate-200"
+                      }`}
+                    />
+                    <div
+                      className={`w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-l-[6px] ${
+                        isLateConnector
+                          ? "border-l-red-400"
+                          : status === "completed"
+                            ? "border-l-emerald-400"
+                            : "border-l-slate-200"
+                      }`}
+                    />
+                  </div>
                 </div>
               )}
             </React.Fragment>

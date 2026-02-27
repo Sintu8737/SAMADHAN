@@ -1,13 +1,5 @@
 import React, { useMemo, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ReactiveMaintenance } from "../types";
 import { getOrgName } from "../data/mockData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

@@ -21,12 +21,13 @@ export type WorkflowStage =
   | "po"
   | "repair-complete";
 
-export type MaintenanceStatus = "completed" | "pending" | "overdue";
+export type MaintenanceStatus = "completed" | "scheduled" | "overdue";
 
 export interface PreventiveQuarter {
   quarter: "Q1" | "Q2" | "Q3" | "Q4";
-  status: MaintenanceStatus;
-  date?: string;
+  status?: MaintenanceStatus;
+  dueDate: string;
+  completedDate?: string;
   comment?: string;
 }
 
@@ -57,6 +58,8 @@ export interface Equipment {
   make: string;
   model: string;
   serialNumber: string;
+  runningHoursLifetime?: number;
+  manufacturingYear?: number;
   assetType: AssetType;
   organizationId: string;
   cost: number;
@@ -127,6 +130,7 @@ export interface CurrentRepairState {
   roByDivHQ?: string;
   soByEngrRgt?: string;
   handoverToVendor?: string;
+  serviceabilityState?: boolean;
   vendorName?: string;
   vendorPDC?: string;
   repairDone?: string;
