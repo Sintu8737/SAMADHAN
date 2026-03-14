@@ -286,7 +286,7 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
                       width={160}
                       tickLine={false}
                       axisLine={false}
-                      tick={{ fontSize: 10 }}
+                      tick={{ fontSize: 11 }}
                     />
                     <XAxis
                       type="number"
