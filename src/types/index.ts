@@ -6,7 +6,13 @@ export type UserRole =
   | "div-hq"
   | "engineer-regiment";
 
-export type OrganizationLevel = "corps" | "division" | "brigade" | "unit";
+export type OrganizationLevel =
+  | "corps"
+  | "division"
+  | "brigade"
+  | "unit"
+  | "eme-battalion"
+  | "workshop";
 
 export type AssetType = "generator" | "wss-pumps";
 
@@ -134,4 +140,33 @@ export interface CurrentRepairState {
   vendorName?: string;
   vendorPDC?: string;
   repairDone?: string;
+}
+
+/* ── Spare Parts Types ── */
+
+export interface SparePartHierarchySelection {
+  corpsId: string;
+  divisionId?: string;
+  emeBnId?: string;
+  workshopId?: string;
+  unitId?: string;
+}
+
+export interface SparePart {
+  id: string;
+  name: string;
+  partNumber: string;
+  category: string;
+  assetType: AssetType;
+  unitOfMeasure: string;
+  unitCost: number;
+}
+
+export interface SparePartStock {
+  id: string;
+  sparePartId: string;
+  organizationId: string;
+  inStockQty: number;
+  lastPurchaseDate: string | null;
+  lastIssuedDate: string | null;
 }

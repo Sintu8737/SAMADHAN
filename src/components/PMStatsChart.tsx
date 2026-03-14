@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Pie,
   PieChart,
@@ -10,8 +10,24 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import { PreventiveMaintenance } from "../types";
+import { MaintenanceStatus, PreventiveMaintenance } from "../types";
+import { getOrgName } from "../data/mockData";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import {
   ChartConfig,
@@ -60,7 +76,25 @@ const overdueBarConfig = {
   },
 } satisfies ChartConfig;
 
+const statusMeta: Record<
+  MaintenanceStatus,
+  { label: string; badgeClass: string }
+> = {
+  completed: {
+    label: "Completed",
+    badgeClass: "bg-emerald-600 hover:bg-emerald-700",
+  },
+  scheduled: {
+    label: "Scheduled",
+    badgeClass: "bg-amber-500 hover:bg-amber-600",
+  },
+  overdue: { label: "Overdue", badgeClass: "" },
+};
+
 const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
+  const [modalStatus, setModalStatus] = useState<MaintenanceStatus | null>(
+    null,
+  );
   const stats = useMemo(() => {
     let completed = 0;
     let scheduled = 0;
@@ -116,6 +150,36 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
 
   const pct = (val: number) =>
     stats.total > 0 ? ((val / stats.total) * 100).toFixed(1) : "0";
+
+  // Build flat list of PM rows for the selected status
+  const modalRows = useMemo(() => {
+    if (!modalStatus) return [];
+    const rows: {
+      recordId: string;
+      equipmentName: string;
+      unit: string;
+      quarter: string;
+      dueDate: string;
+      completedDate: string;
+      comment: string;
+    }[] = [];
+    maintenanceData.forEach((record) => {
+      record.quarters.forEach((q) => {
+        if (q.status === modalStatus) {
+          rows.push({
+            recordId: record.id,
+            equipmentName: record.equipment.name,
+            unit: getOrgName(record.organizationId),
+            quarter: q.quarter,
+            dueDate: q.dueDate || "—",
+            completedDate: q.completedDate || "—",
+            comment: q.comment || "—",
+          });
+        }
+      });
+    });
+    return rows;
+  }, [modalStatus, maintenanceData]);
 
   return (
     <Card>
@@ -195,7 +259,10 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
 
               {/* Stats Cards */}
               <div className="grid grid-cols-3 lg:grid-cols-3 gap-2 min-w-[300px]">
-                <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-emerald-50 via-emerald-50 to-emerald-100 border-emerald-200 px-3 py-3">
+                <div
+                  className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-emerald-50 via-emerald-50 to-emerald-100 border-emerald-200 px-3 py-3 cursor-pointer transition-all hover:shadow-md hover:border-emerald-400"
+                  onClick={() => setModalStatus("completed")}
+                >
                   <div className="absolute -right-2 -top-2 opacity-[0.07]">
                     <CheckCircle2 className="h-14 w-14 text-emerald-900" />
                   </div>
@@ -216,7 +283,10 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
                     </p>
                   </div>
                 </div>
-                <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-amber-50 via-amber-50 to-amber-100 border-amber-200 px-3 py-3">
+                <div
+                  className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-amber-50 via-amber-50 to-amber-100 border-amber-200 px-3 py-3 cursor-pointer transition-all hover:shadow-md hover:border-amber-400"
+                  onClick={() => setModalStatus("scheduled")}
+                >
                   <div className="absolute -right-2 -top-2 opacity-[0.07]">
                     <Clock className="h-14 w-14 text-amber-900" />
                   </div>
@@ -237,7 +307,10 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
                     </p>
                   </div>
                 </div>
-                <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-red-50 via-red-50 to-red-100 border-red-200 px-3 py-3">
+                <div
+                  className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-red-50 via-red-50 to-red-100 border-red-200 px-3 py-3 cursor-pointer transition-all hover:shadow-md hover:border-red-400"
+                  onClick={() => setModalStatus("overdue")}
+                >
                   <div className="absolute -right-2 -top-2 opacity-[0.07]">
                     <AlertTriangle className="h-14 w-14 text-red-900" />
                   </div>
@@ -332,6 +405,75 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
           </div>
         )}
       </CardContent>
+
+      {/* Status detail modal */}
+      <Dialog open={!!modalStatus} onOpenChange={() => setModalStatus(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {modalStatus === "completed" && (
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              )}
+              {modalStatus === "scheduled" && (
+                <Clock className="h-5 w-5 text-amber-500" />
+              )}
+              {modalStatus === "overdue" && (
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              )}
+              {modalStatus && statusMeta[modalStatus].label} PMs
+              <Badge variant="secondary" className="ml-2 text-[10px]">
+                {modalRows.length} item(s)
+              </Badge>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-auto flex-1">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">S.No</TableHead>
+                  <TableHead className="text-xs">Equipment</TableHead>
+                  <TableHead className="text-xs">Unit</TableHead>
+                  <TableHead className="text-xs">Quarter</TableHead>
+                  <TableHead className="text-xs">Due Date</TableHead>
+                  {modalStatus === "completed" && (
+                    <TableHead className="text-xs">Completed Date</TableHead>
+                  )}
+                  <TableHead className="text-xs">Comments</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {modalRows.map((row, idx) => (
+                  <TableRow key={`${row.recordId}-${row.quarter}`}>
+                    <TableCell className="text-xs">{idx + 1}</TableCell>
+                    <TableCell className="text-xs font-medium">
+                      {row.equipmentName}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <Badge variant="outline" className="text-[10px]">
+                        {row.unit}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs font-medium">
+                      {row.quarter}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {row.dueDate}
+                    </TableCell>
+                    {modalStatus === "completed" && (
+                      <TableCell className="text-xs text-muted-foreground">
+                        {row.completedDate}
+                      </TableCell>
+                    )}
+                    <TableCell className="text-xs text-muted-foreground">
+                      {row.comment}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

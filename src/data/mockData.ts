@@ -6,6 +6,9 @@
   PreventiveMaintenance,
   ReactiveMaintenance,
   ReactiveRepairWorkflow,
+  SparePart,
+  SparePartHierarchySelection,
+  SparePartStock,
   User,
   WorkflowStage,
 } from "../types";
@@ -128,6 +131,101 @@ export const mockOrganizations: OrganizationNode[] = [
   { id: "unit-15", name: "Signals", level: "unit", parentId: "bde-5" },
   { id: "unit-16", name: "Tankers", level: "unit", parentId: "bde-5" },
   { id: "unit-17", name: "Medical", level: "unit", parentId: "bde-5" },
+
+  // ── Spare-parts parallel hierarchy: EME BN → Workshop → Unit ──
+  {
+    id: "eme-bn-1",
+    name: "10 EME BN",
+    level: "eme-battalion",
+    parentId: "div-1",
+  },
+
+  {
+    id: "ws-1",
+    name: "Station Workshop",
+    level: "workshop",
+    parentId: "eme-bn-1",
+  },
+  {
+    id: "ws-2",
+    name: "Field Workshop",
+    level: "workshop",
+    parentId: "eme-bn-1",
+  },
+
+  // Units linked under workshops (spare parts context)
+  {
+    id: "sp-unit-1",
+    name: "1 Madras",
+    level: "unit",
+    parentId: "ws-1",
+  },
+  {
+    id: "sp-unit-2",
+    name: "2 Punjab",
+    level: "unit",
+    parentId: "ws-1",
+  },
+  {
+    id: "sp-unit-3",
+    name: "3 Sikh",
+    level: "unit",
+    parentId: "ws-1",
+  },
+  {
+    id: "sp-unit-4",
+    name: "1 Mahar",
+    level: "unit",
+    parentId: "ws-1",
+  },
+  {
+    id: "sp-unit-5",
+    name: "5 Sikh",
+    level: "unit",
+    parentId: "ws-1",
+  },
+  {
+    id: "sp-unit-6",
+    name: "2 JAK Rif",
+    level: "unit",
+    parentId: "ws-2",
+  },
+  {
+    id: "sp-unit-7",
+    name: "3 JAK LI",
+    level: "unit",
+    parentId: "ws-2",
+  },
+  {
+    id: "sp-unit-8",
+    name: "4 Madras",
+    level: "unit",
+    parentId: "ws-2",
+  },
+  {
+    id: "sp-unit-9",
+    name: "6 Punjab",
+    level: "unit",
+    parentId: "ws-2",
+  },
+  {
+    id: "sp-unit-10",
+    name: "120 Rajput",
+    level: "unit",
+    parentId: "ws-2",
+  },
+  {
+    id: "sp-unit-11",
+    name: "121 Rajput",
+    level: "unit",
+    parentId: "ws-2",
+  },
+  {
+    id: "sp-unit-12",
+    name: "122 Rajput",
+    level: "unit",
+    parentId: "ws-2",
+  },
 ];
 
 export const mockUsers: User[] = [
@@ -2381,3 +2479,242 @@ export const mockCurrentRepairState: CurrentRepairState[] = [
     vendorPDC: "2026-02-18",
   },
 ];
+
+/* ══════════════════════════════════════════════════════════════
+   Spare Parts – mock data & helpers
+   ══════════════════════════════════════════════════════════════ */
+
+/**
+ * Get the most specific org ID from a spare-part hierarchy selection,
+ * then return all unit-level descendant IDs under it (spare context).
+ */
+export function getSparePartOrgIds(
+  hierarchy: SparePartHierarchySelection,
+): string[] {
+  const mostSpecificId =
+    hierarchy.unitId ||
+    hierarchy.workshopId ||
+    hierarchy.emeBnId ||
+    hierarchy.divisionId ||
+    hierarchy.corpsId;
+  const allDescendants = getDescendantOrgIds(mostSpecificId);
+  return allDescendants.filter(
+    (id) =>
+      mockOrganizations.find((o) => o.id === id)?.level === "unit" &&
+      id.startsWith("sp-unit"),
+  );
+}
+
+export const mockSpareParts: SparePart[] = [
+  // Generator parts
+  {
+    id: "sp-1",
+    name: "Oil Filter",
+    partNumber: "OF-CUM-2200",
+    category: "Filters",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 850,
+  },
+  {
+    id: "sp-2",
+    name: "Fuel Filter",
+    partNumber: "FF-CUM-3300",
+    category: "Filters",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 1200,
+  },
+  {
+    id: "sp-3",
+    name: "Air Filter Element",
+    partNumber: "AF-CUM-4400",
+    category: "Filters",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 2400,
+  },
+  {
+    id: "sp-4",
+    name: "Drive Belt",
+    partNumber: "DB-GEN-1100",
+    category: "Belts & Hoses",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 1800,
+  },
+  {
+    id: "sp-5",
+    name: "Coolant Hose Assembly",
+    partNumber: "CH-GEN-5500",
+    category: "Belts & Hoses",
+    assetType: "generator",
+    unitOfMeasure: "Set",
+    unitCost: 3200,
+  },
+  {
+    id: "sp-6",
+    name: "AVR Module",
+    partNumber: "AVR-GEN-7700",
+    category: "Electrical",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 15000,
+  },
+  {
+    id: "sp-7",
+    name: "Starter Motor Assembly",
+    partNumber: "SM-CUM-8800",
+    category: "Electrical",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 22000,
+  },
+  {
+    id: "sp-8",
+    name: "Radiator Core",
+    partNumber: "RC-GEN-9900",
+    category: "Cooling",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 28000,
+  },
+  // WSS Pump parts
+  {
+    id: "sp-9",
+    name: "Mechanical Seal",
+    partNumber: "MS-KSB-1010",
+    category: "Seals & Gaskets",
+    assetType: "wss-pumps",
+    unitOfMeasure: "Nos",
+    unitCost: 4500,
+  },
+  {
+    id: "sp-10",
+    name: "Impeller",
+    partNumber: "IMP-KSB-2020",
+    category: "Rotating Parts",
+    assetType: "wss-pumps",
+    unitOfMeasure: "Nos",
+    unitCost: 18000,
+  },
+  {
+    id: "sp-11",
+    name: "Bearing Set (DE + NDE)",
+    partNumber: "BR-KSB-3030",
+    category: "Bearings",
+    assetType: "wss-pumps",
+    unitOfMeasure: "Set",
+    unitCost: 6500,
+  },
+  {
+    id: "sp-12",
+    name: "Gland Packing",
+    partNumber: "GP-PMP-4040",
+    category: "Seals & Gaskets",
+    assetType: "wss-pumps",
+    unitOfMeasure: "Mtr",
+    unitCost: 350,
+  },
+  {
+    id: "sp-13",
+    name: "Coupling Bush Set",
+    partNumber: "CB-PMP-5050",
+    category: "Coupling",
+    assetType: "wss-pumps",
+    unitOfMeasure: "Set",
+    unitCost: 3800,
+  },
+  {
+    id: "sp-14",
+    name: "Motor Winding Coil",
+    partNumber: "MW-PMP-6060",
+    category: "Electrical",
+    assetType: "wss-pumps",
+    unitOfMeasure: "Set",
+    unitCost: 12000,
+  },
+  {
+    id: "sp-15",
+    name: "Pressure Gauge",
+    partNumber: "PG-PMP-7070",
+    category: "Instruments",
+    assetType: "wss-pumps",
+    unitOfMeasure: "Nos",
+    unitCost: 1600,
+  },
+  {
+    id: "sp-16",
+    name: "Non-Return Valve",
+    partNumber: "NRV-PMP-8080",
+    category: "Valves",
+    assetType: "wss-pumps",
+    unitOfMeasure: "Nos",
+    unitCost: 8500,
+  },
+];
+
+// Helper to build stock for every sp-unit × sparePart combination
+function buildSparePartStock(): SparePartStock[] {
+  const spUnits = mockOrganizations.filter(
+    (o) => o.level === "unit" && o.id.startsWith("sp-unit"),
+  );
+  const stock: SparePartStock[] = [];
+  let counter = 1;
+
+  // Deterministic pseudo-random based on ids
+  const hash = (a: string, b: string) => {
+    let h = 0;
+    const s = a + b;
+    for (let i = 0; i < s.length; i++) {
+      h = (h * 31 + s.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h);
+  };
+
+  for (const unit of spUnits) {
+    for (const part of mockSpareParts) {
+      const h = hash(unit.id, part.id);
+      const inStock = 1 + (h % 14); // 1-14
+
+      // lastPurchaseDate — all items have a purchase date
+      let lastPurchaseDate: string | null = null;
+      if (inStock > 0) {
+        const d = new Date("2026-03-14");
+        // purchased 15-400 days ago
+        const daysAgo = 15 + (h % 386);
+        d.setDate(d.getDate() - daysAgo);
+        lastPurchaseDate = d.toISOString().slice(0, 10);
+      }
+
+      // lastIssuedDate — ~15% are deadstock (not issued > 1 year)
+      let lastIssuedDate: string | null = null;
+      if (lastPurchaseDate) {
+        const issueBucket = (h * 7 + 13) % 20; // different distribution
+        const d = new Date("2026-03-14");
+        if (issueBucket < 3) {
+          // Deadstock (~15%): last issued 13-22 months ago
+          const daysAgo = 400 + ((h * 3) % 270);
+          d.setDate(d.getDate() - daysAgo);
+        } else {
+          // Recently issued (~85%): 3-150 days ago
+          const daysAgo = 3 + ((h * 3) % 148);
+          d.setDate(d.getDate() - daysAgo);
+        }
+        lastIssuedDate = d.toISOString().slice(0, 10);
+      }
+
+      stock.push({
+        id: `sps-${counter++}`,
+        sparePartId: part.id,
+        organizationId: unit.id,
+        inStockQty: inStock,
+        lastPurchaseDate,
+        lastIssuedDate,
+      });
+    }
+  }
+  return stock;
+}
+
+export const mockSparePartStock: SparePartStock[] = buildSparePartStock();
