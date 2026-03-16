@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ArmyHeader from "./ArmyHeader";
-import { SparePartHierarchySelection } from "../types";
+import { StockingEchelon } from "../types";
 import {
-  getSparePartOrgIds,
   mockOrganizations,
   mockSpareParts,
   mockSparePartStock,
@@ -79,17 +78,25 @@ const SparePartsDashboard: React.FC = () => {
   const workshopOptions = useMemo(
     () =>
       mockOrganizations.filter(
-        (n) => n.level === "workshop" && n.parentId === emeBnId,
+        (n) => n.level === "workshop" && n.parentId === divisionId,
       ),
-    [emeBnId],
+    [divisionId],
   );
-  const unitOptions = useMemo(
-    () =>
-      mockOrganizations.filter(
-        (n) => n.level === "unit" && n.parentId === workshopId,
-      ),
-    [workshopId],
-  );
+  const unitOptions = useMemo(() => {
+    if (!divisionId) return [];
+    const divWorkshopIds = new Set(
+      mockOrganizations
+        .filter((n) => n.level === "workshop" && n.parentId === divisionId)
+        .map((n) => n.id),
+    );
+    return mockOrganizations.filter(
+      (n) =>
+        n.level === "unit" &&
+        n.id.startsWith("sp-unit") &&
+        n.parentId &&
+        divWorkshopIds.has(n.parentId),
+    );
+  }, [divisionId]);
 
   // Cascade resets
   const handleCorpsChange = (v: string) => {
@@ -105,6 +112,8 @@ const SparePartsDashboard: React.FC = () => {
     setWorkshopId("");
     setUnitId("");
   };
+
+  // Mutually exclusive echelon selectors
   const handleEmeBnChange = (v: string) => {
     setEmeBnId(v);
     setWorkshopId("");
@@ -112,29 +121,50 @@ const SparePartsDashboard: React.FC = () => {
   };
   const handleWorkshopChange = (v: string) => {
     setWorkshopId(v);
+    setEmeBnId("");
     setUnitId("");
   };
+  const handleUnitChange = (v: string) => {
+    setUnitId(v);
+    setEmeBnId("");
+    setWorkshopId("");
+  };
 
-  const hierarchy: SparePartHierarchySelection | null = divisionId
-    ? {
-        corpsId,
-        divisionId,
-        ...(emeBnId && { emeBnId }),
-        ...(workshopId && { workshopId }),
-        ...(unitId && { unitId }),
-      }
-    : null;
+  // Determine selected echelon level and org ID
+  const selectedEchelon: {
+    level: StockingEchelon;
+    orgId: string;
+    label: string;
+  } | null = useMemo(() => {
+    if (emeBnId)
+      return {
+        level: "nodal-workshop",
+        orgId: emeBnId,
+        label: "Nodel Workshop",
+      };
+    if (workshopId)
+      return {
+        level: "dependant-workshop",
+        orgId: workshopId,
+        label: "Dependant Workshop",
+      };
+    if (unitId) return { level: "unit", orgId: unitId, label: "Unit" };
+    return null;
+  }, [emeBnId, workshopId, unitId]);
 
-  // Compute aggregated stock per spare part for the selected hierarchy
+  // Compute stock per spare part for the selected echelon
   const stockSummary = useMemo(() => {
-    if (!hierarchy) return [];
-    const relevantUnitIds = getSparePartOrgIds(hierarchy);
+    if (!selectedEchelon) return [];
 
-    return mockSpareParts.map((part) => {
+    const levelParts = mockSpareParts.filter(
+      (p) => p.stockingLevel === selectedEchelon.level,
+    );
+
+    return levelParts.map((part) => {
       const rows = mockSparePartStock.filter(
         (s) =>
           s.sparePartId === part.id &&
-          relevantUnitIds.includes(s.organizationId),
+          s.organizationId === selectedEchelon.orgId,
       );
       const inStock = rows.reduce((a, r) => a + r.inStockQty, 0);
       const deadstockQty = rows.reduce((a, r) => {
@@ -169,7 +199,7 @@ const SparePartsDashboard: React.FC = () => {
         unitCount: rows.length,
       };
     });
-  }, [hierarchy]);
+  }, [selectedEchelon]);
 
   // Summary cards
   const totals = useMemo(() => {
@@ -193,14 +223,18 @@ const SparePartsDashboard: React.FC = () => {
 
   // Deadstock detail rows for modal
   const deadstockItems = useMemo(() => {
-    if (!hierarchy) return [];
-    const relevantUnitIds = getSparePartOrgIds(hierarchy);
+    if (!selectedEchelon) return [];
     const oneYearAgo = new Date("2025-03-14");
+    const levelParts = mockSpareParts.filter(
+      (p) => p.stockingLevel === selectedEchelon.level,
+    );
+    const levelPartIds = new Set(levelParts.map((p) => p.id));
 
     return mockSparePartStock
       .filter(
         (s) =>
-          relevantUnitIds.includes(s.organizationId) &&
+          s.organizationId === selectedEchelon.orgId &&
+          levelPartIds.has(s.sparePartId) &&
           s.inStockQty > 0 &&
           s.lastIssuedDate &&
           new Date(s.lastIssuedDate) < oneYearAgo,
@@ -215,7 +249,7 @@ const SparePartsDashboard: React.FC = () => {
         return { ...s, part, daysSinceIssue };
       })
       .sort((a, b) => b.daysSinceIssue - a.daysSinceIssue);
-  }, [hierarchy]);
+  }, [selectedEchelon]);
 
   // Per-unit breakdown when a specific spare part row could be drilled into
   // For now we show aggregated view
@@ -224,10 +258,21 @@ const SparePartsDashboard: React.FC = () => {
     <div className="min-h-screen bg-muted/30">
       <ArmyHeader title="Spare Parts Dashboard" />
       <main className="mx-auto w-full max-w-7xl p-4 md:p-6 space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/demand-planner")}
+            className="gap-2"
+          >
+            <IndianRupee className="h-4 w-4" />
+            Demand Planner
+          </Button>
+        </div>
 
         {/* Hierarchy selectors */}
         <Card>
@@ -235,7 +280,7 @@ const SparePartsDashboard: React.FC = () => {
             <CardTitle className="text-base">Select Formation</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {/* Corps */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Corps</Label>
@@ -273,84 +318,112 @@ const SparePartsDashboard: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* EME Battalion */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">EME Battalion</Label>
-                <Select
-                  value={emeBnId}
-                  onValueChange={handleEmeBnChange}
-                  disabled={!divisionId}
-                >
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="All EME BNs" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {emeBnOptions.map((o) => (
-                      <SelectItem key={o.id} value={o.id} className="text-xs">
-                        {o.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Workshop */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Workshop</Label>
-                <Select
-                  value={workshopId}
-                  onValueChange={handleWorkshopChange}
-                  disabled={!emeBnId}
-                >
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="All Workshops" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workshopOptions.map((o) => (
-                      <SelectItem key={o.id} value={o.id} className="text-xs">
-                        {o.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Unit */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Unit</Label>
-                <Select
-                  value={unitId}
-                  onValueChange={setUnitId}
-                  disabled={!workshopId}
-                >
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="All Units" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {unitOptions.map((o) => (
-                      <SelectItem key={o.id} value={o.id} className="text-xs">
-                        {o.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Data area — requires at least division */}
-        {!hierarchy ? (
+        {/* Stocking Echelon selectors */}
+        {divisionId && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Stocking Echelon</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Select any one level to view its stock
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {/* Nodel Workshop */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Nodel Workshop</Label>
+                  <Select value={emeBnId} onValueChange={handleEmeBnChange}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select Nodel Workshop" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {emeBnOptions.map((o) => (
+                        <SelectItem key={o.id} value={o.id} className="text-xs">
+                          {o.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Dependant Workshop */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Dependant Workshop</Label>
+                  <Select
+                    value={workshopId}
+                    onValueChange={handleWorkshopChange}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select Dep Workshop" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workshopOptions.map((o) => (
+                        <SelectItem key={o.id} value={o.id} className="text-xs">
+                          {o.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Unit */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Unit</Label>
+                  <Select value={unitId} onValueChange={handleUnitChange}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select Unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unitOptions.map((o) => (
+                        <SelectItem key={o.id} value={o.id} className="text-xs">
+                          {o.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Data area — requires echelon selection */}
+        {!selectedEchelon ? (
           <div className="flex min-h-[40vh] items-center justify-center">
             <p className="text-lg text-muted-foreground">
-              Select <span className="font-semibold">Corps</span> and{" "}
-              <span className="font-semibold">Division</span> to view spare
-              parts data
+              {!divisionId ? (
+                <>
+                  Select <span className="font-semibold">Corps</span> and{" "}
+                  <span className="font-semibold">Division</span>, then choose a
+                  stocking echelon
+                </>
+              ) : (
+                <>
+                  Select a{" "}
+                  <span className="font-semibold">Stocking Echelon</span> to
+                  view spare parts data
+                </>
+              )}
             </p>
           </div>
         ) : (
           <>
+            {/* Echelon level indicator */}
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                Showing stock at:{" "}
+                <span className="font-semibold ml-1">
+                  {selectedEchelon.label}
+                </span>
+                {" — "}
+                {getOrgName(selectedEchelon.orgId)}
+              </Badge>
+            </div>
+
             {/* Summary cards */}
             {totals && (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -563,54 +636,6 @@ const SparePartsDashboard: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Per-unit breakdown when unit selected */}
-            {unitId && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">
-                    Unit Detail — {getOrgName(unitId)}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs">Part No</TableHead>
-                          <TableHead className="text-xs">Name</TableHead>
-                          <TableHead className="text-xs text-right">
-                            In Stock
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {mockSparePartStock
-                          .filter((s) => s.organizationId === unitId)
-                          .map((s) => {
-                            const part = mockSpareParts.find(
-                              (p) => p.id === s.sparePartId,
-                            )!;
-                            return (
-                              <TableRow key={s.id}>
-                                <TableCell className="text-xs font-mono">
-                                  {part.partNumber}
-                                </TableCell>
-                                <TableCell className="text-xs font-medium">
-                                  {part.name}
-                                </TableCell>
-                                <TableCell className="text-xs text-right font-medium">
-                                  {s.inStockQty}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </>
         )}
       </main>

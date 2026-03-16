@@ -281,6 +281,9 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
                     <p className="text-[11px] text-emerald-600/80 mt-1">
                       {pct(stats.completed)}% of total
                     </p>
+                    <p className="text-[10px] text-emerald-600 mt-1.5 underline underline-offset-2">
+                      See details &rarr;
+                    </p>
                   </div>
                 </div>
                 <div
@@ -305,6 +308,9 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
                     <p className="text-[11px] text-amber-600/80 mt-1">
                       {pct(stats.scheduled)}% of total
                     </p>
+                    <p className="text-[10px] text-amber-600 mt-1.5 underline underline-offset-2">
+                      See details &rarr;
+                    </p>
                   </div>
                 </div>
                 <div
@@ -328,6 +334,9 @@ const PMStatsChart: React.FC<PMStatsChartProps> = ({ maintenanceData }) => {
                     </p>
                     <p className="text-[11px] text-red-600/80 mt-1">
                       {pct(stats.overdue)}% of total
+                    </p>
+                    <p className="text-[10px] text-red-600 mt-1.5 underline underline-offset-2">
+                      See details &rarr;
                     </p>
                   </div>
                 </div>

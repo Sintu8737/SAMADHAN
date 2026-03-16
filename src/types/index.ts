@@ -144,6 +144,8 @@ export interface CurrentRepairState {
 
 /* ── Spare Parts Types ── */
 
+export type StockingEchelon = "nodal-workshop" | "dependant-workshop" | "unit";
+
 export interface SparePartHierarchySelection {
   corpsId: string;
   divisionId?: string;
@@ -160,6 +162,7 @@ export interface SparePart {
   assetType: AssetType;
   unitOfMeasure: string;
   unitCost: number;
+  stockingLevel: StockingEchelon;
 }
 
 export interface SparePartStock {

@@ -15,6 +15,7 @@ import CurrentRepairStateComponent from "./components/CurrentRepairState";
 import ArmyHeader from "./components/ArmyHeader";
 import DashboardSelector from "./components/DashboardSelector";
 import SparePartsDashboard from "./components/SparePartsDashboard";
+import DemandPlanner from "./components/DemandPlanner";
 
 type AppState = "landing" | "preventive" | "reactive" | "current-repair";
 
@@ -135,6 +136,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/" element={<DashboardSelector />} />
       <Route path="/maintenance" element={<DashboardContent />} />
       <Route path="/spare-parts" element={<SparePartsDashboard />} />
+      <Route path="/demand-planner" element={<DemandPlanner />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

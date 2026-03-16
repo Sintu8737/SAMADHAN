@@ -132,10 +132,34 @@ export const mockOrganizations: OrganizationNode[] = [
   { id: "unit-16", name: "Tankers", level: "unit", parentId: "bde-5" },
   { id: "unit-17", name: "Medical", level: "unit", parentId: "bde-5" },
 
-  // ── Spare-parts parallel hierarchy: EME BN → Workshop → Unit ──
+  // ── Spare-parts parallel hierarchy: Nodal WS → Dep WS → Unit ──
   {
     id: "eme-bn-1",
-    name: "10 EME BN",
+    name: "101 Field Workshop",
+    level: "eme-battalion",
+    parentId: "div-1",
+  },
+  {
+    id: "eme-bn-2",
+    name: "102 Field Workshop",
+    level: "eme-battalion",
+    parentId: "div-1",
+  },
+  {
+    id: "eme-bn-3",
+    name: "103 Field Workshop",
+    level: "eme-battalion",
+    parentId: "div-1",
+  },
+  {
+    id: "eme-bn-4",
+    name: "10 AB Workshop",
+    level: "eme-battalion",
+    parentId: "div-1",
+  },
+  {
+    id: "eme-bn-5",
+    name: "Div Troops",
     level: "eme-battalion",
     parentId: "div-1",
   },
@@ -144,13 +168,25 @@ export const mockOrganizations: OrganizationNode[] = [
     id: "ws-1",
     name: "Station Workshop",
     level: "workshop",
-    parentId: "eme-bn-1",
+    parentId: "div-1",
   },
   {
     id: "ws-2",
     name: "Field Workshop",
     level: "workshop",
-    parentId: "eme-bn-1",
+    parentId: "div-1",
+  },
+  {
+    id: "ws-3",
+    name: "Base Workshop",
+    level: "workshop",
+    parentId: "div-1",
+  },
+  {
+    id: "ws-4",
+    name: "Forward Workshop",
+    level: "workshop",
+    parentId: "div-1",
   },
 
   // Units linked under workshops (spare parts context)
@@ -2506,163 +2542,228 @@ export function getSparePartOrgIds(
 }
 
 export const mockSpareParts: SparePart[] = [
-  // Generator parts
+  // ── Nodel Workshop level ──
   {
     id: "sp-1",
-    name: "Oil Filter",
-    partNumber: "OF-CUM-2200",
-    category: "Filters",
-    assetType: "generator",
-    unitOfMeasure: "Nos",
-    unitCost: 850,
-  },
-  {
-    id: "sp-2",
-    name: "Fuel Filter",
-    partNumber: "FF-CUM-3300",
-    category: "Filters",
-    assetType: "generator",
-    unitOfMeasure: "Nos",
-    unitCost: 1200,
-  },
-  {
-    id: "sp-3",
-    name: "Air Filter Element",
-    partNumber: "AF-CUM-4400",
-    category: "Filters",
-    assetType: "generator",
-    unitOfMeasure: "Nos",
-    unitCost: 2400,
-  },
-  {
-    id: "sp-4",
-    name: "Drive Belt",
-    partNumber: "DB-GEN-1100",
-    category: "Belts & Hoses",
-    assetType: "generator",
-    unitOfMeasure: "Nos",
-    unitCost: 1800,
-  },
-  {
-    id: "sp-5",
-    name: "Coolant Hose Assembly",
-    partNumber: "CH-GEN-5500",
-    category: "Belts & Hoses",
-    assetType: "generator",
-    unitOfMeasure: "Set",
-    unitCost: 3200,
-  },
-  {
-    id: "sp-6",
-    name: "AVR Module",
-    partNumber: "AVR-GEN-7700",
+    name: "AVR",
+    partNumber: "AVR-GEN-0101",
     category: "Electrical",
     assetType: "generator",
     unitOfMeasure: "Nos",
     unitCost: 15000,
+    stockingLevel: "nodal-workshop",
   },
   {
-    id: "sp-7",
-    name: "Starter Motor Assembly",
-    partNumber: "SM-CUM-8800",
+    id: "sp-2",
+    name: "Gasket Set",
+    partNumber: "GS-GEN-0102",
+    category: "Seals & Gaskets",
+    assetType: "generator",
+    unitOfMeasure: "Set",
+    unitCost: 4500,
+    stockingLevel: "nodal-workshop",
+  },
+  {
+    id: "sp-3",
+    name: "Self-Starter",
+    partNumber: "SS-GEN-0103",
     category: "Electrical",
     assetType: "generator",
     unitOfMeasure: "Nos",
     unitCost: 22000,
+    stockingLevel: "nodal-workshop",
+  },
+  {
+    id: "sp-4",
+    name: "Charging Alternator",
+    partNumber: "CA-GEN-0104",
+    category: "Electrical",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 18000,
+    stockingLevel: "nodal-workshop",
+  },
+  {
+    id: "sp-5",
+    name: "Injector Assembly",
+    partNumber: "IA-GEN-0105",
+    category: "Fuel System",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 12000,
+    stockingLevel: "nodal-workshop",
+  },
+  {
+    id: "sp-6",
+    name: "Fuel Feed Pump",
+    partNumber: "FFP-GEN-0106",
+    category: "Fuel System",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 8500,
+    stockingLevel: "nodal-workshop",
+  },
+  {
+    id: "sp-7",
+    name: "MCB",
+    partNumber: "MCB-GEN-0107",
+    category: "Electrical",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 1200,
+    stockingLevel: "nodal-workshop",
   },
   {
     id: "sp-8",
-    name: "Radiator Core",
-    partNumber: "RC-GEN-9900",
+    name: "Exhaust Fan",
+    partNumber: "EF-GEN-0108",
     category: "Cooling",
     assetType: "generator",
     unitOfMeasure: "Nos",
-    unitCost: 28000,
+    unitCost: 3500,
+    stockingLevel: "nodal-workshop",
   },
-  // WSS Pump parts
   {
     id: "sp-9",
-    name: "Mechanical Seal",
-    partNumber: "MS-KSB-1010",
-    category: "Seals & Gaskets",
-    assetType: "wss-pumps",
+    name: "Temperature Gauge",
+    partNumber: "TG-GEN-0109",
+    category: "Instruments",
+    assetType: "generator",
     unitOfMeasure: "Nos",
-    unitCost: 4500,
+    unitCost: 2200,
+    stockingLevel: "nodal-workshop",
   },
   {
     id: "sp-10",
-    name: "Impeller",
-    partNumber: "IMP-KSB-2020",
-    category: "Rotating Parts",
-    assetType: "wss-pumps",
+    name: "Oil Pressure Gauge",
+    partNumber: "OPG-GEN-0110",
+    category: "Instruments",
+    assetType: "generator",
     unitOfMeasure: "Nos",
-    unitCost: 18000,
+    unitCost: 2500,
+    stockingLevel: "nodal-workshop",
   },
   {
     id: "sp-11",
-    name: "Bearing Set (DE + NDE)",
-    partNumber: "BR-KSB-3030",
-    category: "Bearings",
-    assetType: "wss-pumps",
-    unitOfMeasure: "Set",
+    name: "Diode Plate",
+    partNumber: "DP-GEN-0111",
+    category: "Electrical",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
     unitCost: 6500,
+    stockingLevel: "nodal-workshop",
   },
   {
     id: "sp-12",
-    name: "Gland Packing",
-    partNumber: "GP-PMP-4040",
-    category: "Seals & Gaskets",
-    assetType: "wss-pumps",
-    unitOfMeasure: "Mtr",
-    unitCost: 350,
+    name: "DG Controller",
+    partNumber: "DGC-GEN-0112",
+    category: "Electrical",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 35000,
+    stockingLevel: "nodal-workshop",
   },
   {
     id: "sp-13",
-    name: "Coupling Bush Set",
-    partNumber: "CB-PMP-5050",
-    category: "Coupling",
-    assetType: "wss-pumps",
-    unitOfMeasure: "Set",
-    unitCost: 3800,
+    name: "Fuel Level Gauge",
+    partNumber: "FLG-GEN-0113",
+    category: "Instruments",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 1800,
+    stockingLevel: "nodal-workshop",
   },
+
+  // ── Dependant Workshop level ──
   {
     id: "sp-14",
-    name: "Motor Winding Coil",
-    partNumber: "MW-PMP-6060",
-    category: "Electrical",
-    assetType: "wss-pumps",
-    unitOfMeasure: "Set",
-    unitCost: 12000,
+    name: "Fuel Flexible Pipe",
+    partNumber: "FFP-DEP-0201",
+    category: "Fuel System",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 950,
+    stockingLevel: "dependant-workshop",
   },
   {
     id: "sp-15",
-    name: "Pressure Gauge",
-    partNumber: "PG-PMP-7070",
-    category: "Instruments",
-    assetType: "wss-pumps",
+    name: "Fan Belt",
+    partNumber: "FB-DEP-0202",
+    category: "Belts & Hoses",
+    assetType: "generator",
     unitOfMeasure: "Nos",
-    unitCost: 1600,
+    unitCost: 650,
+    stockingLevel: "dependant-workshop",
   },
   {
     id: "sp-16",
-    name: "Non-Return Valve",
-    partNumber: "NRV-PMP-8080",
-    category: "Valves",
-    assetType: "wss-pumps",
+    name: "Bty Terminal",
+    partNumber: "BT-DEP-0203",
+    category: "Electrical",
+    assetType: "generator",
     unitOfMeasure: "Nos",
-    unitCost: 8500,
+    unitCost: 180,
+    stockingLevel: "dependant-workshop",
+  },
+  {
+    id: "sp-17",
+    name: "Injector Overflow Pipe",
+    partNumber: "IOP-DEP-0204",
+    category: "Fuel System",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 420,
+    stockingLevel: "dependant-workshop",
+  },
+  {
+    id: "sp-18",
+    name: "Banjo Washer",
+    partNumber: "BW-DEP-0205",
+    category: "Seals & Gaskets",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 25,
+    stockingLevel: "dependant-workshop",
+  },
+
+  // ── Unit level ──
+  {
+    id: "sp-19",
+    name: "Fuel Filter Element",
+    partNumber: "FFE-UNT-0301",
+    category: "Filters",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 1200,
+    stockingLevel: "unit",
+  },
+  {
+    id: "sp-20",
+    name: "Oil Filter Element",
+    partNumber: "OFE-UNT-0302",
+    category: "Filters",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 850,
+    stockingLevel: "unit",
+  },
+  {
+    id: "sp-21",
+    name: "Air Filter Element",
+    partNumber: "AFE-UNT-0303",
+    category: "Filters",
+    assetType: "generator",
+    unitOfMeasure: "Nos",
+    unitCost: 2400,
+    stockingLevel: "unit",
   },
 ];
 
-// Helper to build stock for every sp-unit × sparePart combination
+// Helper to build stock for every echelon org × its spare parts
 function buildSparePartStock(): SparePartStock[] {
-  const spUnits = mockOrganizations.filter(
-    (o) => o.level === "unit" && o.id.startsWith("sp-unit"),
-  );
   const stock: SparePartStock[] = [];
   let counter = 1;
 
-  // Deterministic pseudo-random based on ids
   const hash = (a: string, b: string) => {
     let h = 0;
     const s = a + b;
@@ -2672,49 +2773,108 @@ function buildSparePartStock(): SparePartStock[] {
     return Math.abs(h);
   };
 
-  for (const unit of spUnits) {
-    for (const part of mockSpareParts) {
-      const h = hash(unit.id, part.id);
-      const inStock = 1 + (h % 14); // 1-14
+  const generateRow = (orgId: string, part: SparePart) => {
+    const h = hash(orgId, part.id);
+    const inStock = 1 + (h % 14);
 
-      // lastPurchaseDate — all items have a purchase date
-      let lastPurchaseDate: string | null = null;
-      if (inStock > 0) {
-        const d = new Date("2026-03-14");
-        // purchased 15-400 days ago
-        const daysAgo = 15 + (h % 386);
+    let lastPurchaseDate: string | null = null;
+    if (inStock > 0) {
+      const d = new Date("2026-03-14");
+      const daysAgo = 15 + (h % 386);
+      d.setDate(d.getDate() - daysAgo);
+      lastPurchaseDate = d.toISOString().slice(0, 10);
+    }
+
+    let lastIssuedDate: string | null = null;
+    if (lastPurchaseDate) {
+      const issueBucket = (h * 7 + 13) % 20;
+      const d = new Date("2026-03-14");
+      if (issueBucket < 3) {
+        const daysAgo = 400 + ((h * 3) % 270);
         d.setDate(d.getDate() - daysAgo);
-        lastPurchaseDate = d.toISOString().slice(0, 10);
+      } else {
+        const daysAgo = 3 + ((h * 3) % 148);
+        d.setDate(d.getDate() - daysAgo);
       }
+      lastIssuedDate = d.toISOString().slice(0, 10);
+    }
 
-      // lastIssuedDate — ~15% are deadstock (not issued > 1 year)
-      let lastIssuedDate: string | null = null;
-      if (lastPurchaseDate) {
-        const issueBucket = (h * 7 + 13) % 20; // different distribution
-        const d = new Date("2026-03-14");
-        if (issueBucket < 3) {
-          // Deadstock (~15%): last issued 13-22 months ago
-          const daysAgo = 400 + ((h * 3) % 270);
-          d.setDate(d.getDate() - daysAgo);
-        } else {
-          // Recently issued (~85%): 3-150 days ago
-          const daysAgo = 3 + ((h * 3) % 148);
-          d.setDate(d.getDate() - daysAgo);
-        }
-        lastIssuedDate = d.toISOString().slice(0, 10);
-      }
+    stock.push({
+      id: `sps-${counter++}`,
+      sparePartId: part.id,
+      organizationId: orgId,
+      inStockQty: inStock,
+      lastPurchaseDate,
+      lastIssuedDate,
+    });
+  };
 
-      stock.push({
-        id: `sps-${counter++}`,
-        sparePartId: part.id,
-        organizationId: unit.id,
-        inStockQty: inStock,
-        lastPurchaseDate,
-        lastIssuedDate,
-      });
+  // Nodal Workshop level (eme-battalion orgs)
+  const nodalOrgs = mockOrganizations.filter(
+    (o) => o.level === "eme-battalion",
+  );
+  const nodalParts = mockSpareParts.filter(
+    (p) => p.stockingLevel === "nodal-workshop",
+  );
+  for (const org of nodalOrgs) {
+    for (const part of nodalParts) {
+      generateRow(org.id, part);
     }
   }
+
+  // Dependant Workshop level (workshop orgs)
+  const depOrgs = mockOrganizations.filter((o) => o.level === "workshop");
+  const depParts = mockSpareParts.filter(
+    (p) => p.stockingLevel === "dependant-workshop",
+  );
+  for (const org of depOrgs) {
+    for (const part of depParts) {
+      generateRow(org.id, part);
+    }
+  }
+
+  // Unit level (sp-unit orgs)
+  const unitOrgs = mockOrganizations.filter(
+    (o) => o.level === "unit" && o.id.startsWith("sp-unit"),
+  );
+  const unitParts = mockSpareParts.filter((p) => p.stockingLevel === "unit");
+  for (const org of unitOrgs) {
+    for (const part of unitParts) {
+      generateRow(org.id, part);
+    }
+  }
+
   return stock;
 }
 
 export const mockSparePartStock: SparePartStock[] = buildSparePartStock();
+
+// ── Demand Planner data (all spare parts across all levels) ──
+export interface SparePartDemand {
+  sparePartId: string;
+  demandQty: number;
+}
+
+export const mockSparePartDemand: SparePartDemand[] = mockSpareParts.map(
+  (part) => {
+    let h = 0;
+    const s = "demand-" + part.id;
+    for (let i = 0; i < s.length; i++) {
+      h = (h * 31 + s.charCodeAt(i)) | 0;
+    }
+    h = Math.abs(h);
+    // Higher-cost items have lower demand, cheaper items have higher demand
+    const base =
+      part.unitCost < 1000
+        ? 20
+        : part.unitCost < 5000
+          ? 10
+          : part.unitCost < 20000
+            ? 5
+            : 2;
+    return {
+      sparePartId: part.id,
+      demandQty: base + (h % (base + 3)),
+    };
+  },
+);
